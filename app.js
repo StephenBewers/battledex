@@ -24,6 +24,9 @@ const winnerPortrait = document.getElementById("winner-portrait");
 const resultReasoning = document.getElementById("result-reasoning");
 const loserName = document.getElementById("loser-name");
 const loserPortrait = document.getElementById("loser-portrait");
+const winnerActions = document.getElementById("winner-actions");
+const loserActions = document.getElementById("loser-actions");
+const saveMessage = document.getElementById("save-message");
 const newFightButton = document.getElementById("new-fight");
 
 let isFighting = false;
@@ -91,6 +94,82 @@ function buildPortrait(fighter, art, size) {
   return img;
 }
 
+/* ---------- Saving to the BattleDex ---------- */
+
+function setSaveMessage(message, isError = false) {
+  saveMessage.textContent = message;
+  if (isError) saveMessage.dataset.error = "true";
+  else delete saveMessage.dataset.error;
+}
+
+const SAVE_ERRORS = {
+  quota: "The BattleDex is full. Remove a fighter to make room.",
+  unavailable: "Can't save: your browser is blocking storage.",
+  invalid: "Can't save this fighter.",
+};
+
+// The button uses aria-disabled rather than disabled so keyboard focus stays put.
+function setSaveButtonState(button, fighter, state) {
+  button.dataset.state = state;
+  if (state === "saved") {
+    button.textContent = "Saved";
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("aria-label", `${fighter.name} is saved in the BattleDex`);
+  } else if (state === "saving") {
+    button.textContent = "Saving...";
+    button.setAttribute("aria-disabled", "true");
+    button.setAttribute("aria-label", `Saving ${fighter.name}`);
+  } else {
+    button.textContent = "Save";
+    button.removeAttribute("aria-disabled");
+    button.setAttribute("aria-label", `Save ${fighter.name} to the BattleDex`);
+  }
+}
+
+async function saveToBattleDex(button, fighter, art) {
+  if (button.getAttribute("aria-disabled") === "true") return;
+  setSaveButtonState(button, fighter, "saving");
+
+  try {
+    const image = await downsizeImage(art.image);
+    const result = BattleDex.save({
+      id: fighter.id,
+      name: fighter.name,
+      image,
+      createdAt: Date.now(),
+    });
+    if (!result.ok) {
+      setSaveButtonState(button, fighter, "unsaved");
+      setSaveMessage(SAVE_ERRORS[result.reason] || SAVE_ERRORS.invalid, true);
+      return;
+    }
+    setSaveButtonState(button, fighter, "saved");
+    setSaveMessage(`${fighter.name} saved to the BattleDex.`);
+  } catch {
+    setSaveButtonState(button, fighter, "unsaved");
+    setSaveMessage("Couldn't prepare this portrait for saving.", true);
+  }
+}
+
+// Save button for one fighter. A fighter without real art can't be saved: the
+// BattleDex stores art, and saving a placeholder would stop the real portrait
+// ever being generated.
+function buildSaveControl(fighter, art) {
+  if (!art || !art.image) {
+    const note = document.createElement("p");
+    note.className = "save-note";
+    note.textContent = "Can't save: no portrait";
+    return note;
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "save-button";
+  setSaveButtonState(button, fighter, BattleDex.get(fighter.id) ? "saved" : "unsaved");
+  button.addEventListener("click", () => saveToBattleDex(button, fighter, art));
+  return button;
+}
+
 function renderResult(fighters, verdict, arts) {
   const winnerKey = verdict.winner === "A" ? "a" : "b";
   const loserKey = winnerKey === "a" ? "b" : "a";
@@ -102,6 +181,9 @@ function renderResult(fighters, verdict, arts) {
   resultReasoning.textContent = verdict.reasoning;
   loserName.textContent = loser.name;
   loserPortrait.replaceChildren(buildPortrait(loser, arts[loserKey], 96));
+  winnerActions.replaceChildren(buildSaveControl(winner, arts[winnerKey]));
+  loserActions.replaceChildren(buildSaveControl(loser, arts[loserKey]));
+  setSaveMessage("");
 
   // Un-hiding the view restarts the CSS entrance animation each time.
   showView("result");
@@ -136,6 +218,14 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+// Fighters already in the BattleDex reuse their saved art, so no image call is
+// made for them.
+function fetchArt(fighter) {
+  const saved = BattleDex.get(fighter.id);
+  if (saved) return Promise.resolve({ image: saved.image });
+  return withTimeout(getArt(fighter.name), API_TIMEOUT_MS);
+}
+
 function verdictFailureMessage(reason) {
   if (reason && reason.name === "TimeoutError") {
     return "The judges took too long to decide. Press Fight to try again.";
@@ -155,8 +245,8 @@ async function startFight(fighters) {
     // Verdict and art run in parallel. Everything is settled before the reveal.
     const [verdictResult, artAResult, artBResult] = await Promise.allSettled([
       withTimeout(getVerdict(fighters.a.name, fighters.b.name), API_TIMEOUT_MS),
-      withTimeout(getArt(fighters.a.name), API_TIMEOUT_MS),
-      withTimeout(getArt(fighters.b.name), API_TIMEOUT_MS),
+      fetchArt(fighters.a),
+      fetchArt(fighters.b),
     ]);
 
     if (verdictResult.status !== "fulfilled" || !isValidVerdict(verdictResult.value)) {

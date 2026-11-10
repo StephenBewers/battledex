@@ -64,6 +64,7 @@
         </h2>
 
         <div id="winner-portrait" class="winner-portrait"></div>
+        <div id="winner-actions" class="fighter-actions winner-actions"></div>
 
         <section class="winner-reasoning" aria-labelledby="reasoning-title">
           <h3 id="reasoning-title" class="reasoning-title">Why they won</h3>
@@ -75,8 +76,11 @@
           <div class="defeated-info">
             <p id="defeated-label" class="defeated-label">Defeated</p>
             <p id="loser-name" class="defeated-name"></p>
+            <div id="loser-actions" class="fighter-actions"></div>
           </div>
         </aside>
+
+        <p id="save-message" class="save-message" role="status"></p>
       </article>
 
       <button type="button" id="new-fight" class="fight-button">New fight</button>
@@ -90,6 +94,8 @@
   <script src="validation.js"></script>
   <script src="api-client.js"></script>
   <script src="placeholder.js"></script>
+  <script src="image-utils.js"></script>
+  <script src="battledex.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

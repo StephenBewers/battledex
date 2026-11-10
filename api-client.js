@@ -69,7 +69,9 @@ function mockPortrait(name) {
   const skin = `hsl(${(hue + 40) % 360} 70% 70%)`;
   const shirt = `hsl(${(hue + 180) % 360} 70% 55%)`;
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">` +
+    // Explicit width/height so the browser reports a real size when this is
+    // downsized for the BattleDex.
+    `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 16 16" shape-rendering="crispEdges">` +
     `<rect width="16" height="16" fill="${bg}"/>` +
     `<rect x="2" y="12" width="12" height="4" fill="${shirt}"/>` +
     `<rect x="5" y="3" width="6" height="8" fill="${skin}"/>` +
