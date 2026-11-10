@@ -18,9 +18,12 @@ const fields = {
 const fightError = document.getElementById("fight-error");
 const loadingView = document.getElementById("loading");
 const resultView = document.getElementById("result");
-const resultTitle = document.getElementById("result-title");
-const resultFighters = document.getElementById("result-fighters");
+const winnerHeading = document.getElementById("result-title");
+const winnerName = document.getElementById("winner-name");
+const winnerPortrait = document.getElementById("winner-portrait");
 const resultReasoning = document.getElementById("result-reasoning");
+const loserName = document.getElementById("loser-name");
+const loserPortrait = document.getElementById("loser-portrait");
 const newFightButton = document.getElementById("new-fight");
 
 let isFighting = false;
@@ -69,45 +72,44 @@ function hideFightError() {
   fightError.hidden = true;
 }
 
-/* ---------- Result display (basic; replaced by the winner's card in stage 5) ---------- */
+/* ---------- Winner's card ---------- */
 
-function buildFighterFigure(fighter, art, isWinner) {
-  const figure = document.createElement("figure");
-  figure.className = "result-fighter";
-  if (isWinner) figure.dataset.winner = "true";
-
+// Portrait image, or a simple fallback box when art is missing (the proper
+// placeholder sprite arrives in stage 6).
+function buildPortrait(fighter, art, size) {
   if (art && art.image) {
     const img = document.createElement("img");
     img.src = art.image;
     img.alt = `Pixel portrait of ${fighter.name}`;
-    img.width = 160;
-    img.height = 160;
-    figure.append(img);
-  } else {
-    // Proper placeholder sprite arrives in stage 6.
-    const missing = document.createElement("div");
-    missing.className = "result-no-art";
-    missing.textContent = "No portrait";
-    figure.append(missing);
+    img.width = size;
+    img.height = size;
+    return img;
   }
-
-  const caption = document.createElement("figcaption");
-  caption.textContent = isWinner ? `${fighter.name} (winner)` : fighter.name;
-  figure.append(caption);
-  return figure;
+  const missing = document.createElement("div");
+  missing.className = "no-art";
+  missing.setAttribute("role", "img");
+  missing.setAttribute("aria-label", `No portrait available for ${fighter.name}`);
+  missing.textContent = "No portrait";
+  return missing;
 }
 
 function renderResult(fighters, verdict, arts) {
   const winnerKey = verdict.winner === "A" ? "a" : "b";
-  resultTitle.textContent = `${fighters[winnerKey].name} wins!`;
+  const loserKey = winnerKey === "a" ? "b" : "a";
+  const winner = fighters[winnerKey];
+  const loser = fighters[loserKey];
+
+  winnerName.textContent = winner.name;
+  winnerPortrait.replaceChildren(buildPortrait(winner, arts[winnerKey], 240));
   resultReasoning.textContent = verdict.reasoning;
-  resultFighters.replaceChildren(
-    buildFighterFigure(fighters.a, arts.a, winnerKey === "a"),
-    buildFighterFigure(fighters.b, arts.b, winnerKey === "b")
-  );
+  loserName.textContent = loser.name;
+  loserPortrait.replaceChildren(buildPortrait(loser, arts[loserKey], 96));
+
+  // Un-hiding the view restarts the CSS entrance animation each time.
   showView("result");
-  // Moving focus to the heading reads the winner aloud and scrolls it into view.
-  resultTitle.focus();
+  // Moving focus to the heading reads "Winner! <name>" aloud and scrolls the
+  // card into view.
+  winnerHeading.focus();
 }
 
 function isValidVerdict(verdict) {

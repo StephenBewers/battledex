@@ -301,75 +301,193 @@ body::after {
   content: "! ";
 }
 
-/* Basic result display (replaced by the winner's card in stage 5) */
+/* Winner's card */
 .result {
-  background: var(--panel);
-  border: var(--border) solid var(--accent);
-  box-shadow: 6px 6px 0 var(--red-dark);
-  padding: 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
-.result-title {
+.winner-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 24px 16px;
+  background: var(--panel);
+  border: var(--border) solid var(--accent);
+  box-shadow: 6px 6px 0 var(--red-dark);
+  text-align: center;
+  animation: card-slam 0.5s steps(5, end) both;
+}
+
+.winner-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
   margin: 0;
-  font-size: 1.25rem;
-  line-height: 1.5;
-  color: var(--accent);
+  line-height: 1.4;
   text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
-.result-title:focus {
+.winner-heading:focus {
   outline: none;
 }
 
-.result-fighters {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.winner-banner {
+  color: var(--red);
+  font-size: clamp(1.25rem, 8vw, 2rem);
+  text-shadow: 3px 3px 0 var(--ink);
+  animation: pop 0.4s steps(4, end) 0.4s both;
 }
 
-.result-fighter {
-  margin: 0;
-  text-align: center;
-  min-width: 0;
+.winner-name {
+  color: var(--accent);
+  font-size: clamp(1rem, 6vw, 1.5rem);
 }
 
-.result-fighter img,
-.result-no-art {
+.winner-portrait {
+  width: 100%;
+  max-width: 240px;
+  animation: pop 0.4s steps(4, end) 0.6s both;
+}
+
+.winner-portrait img,
+.winner-portrait .no-art,
+.defeated-portrait img,
+.defeated-portrait .no-art {
   display: block;
   width: 100%;
-  max-width: 160px;
   aspect-ratio: 1;
-  margin: 0 auto 8px;
-  border: var(--border) solid var(--cyan);
+  background: var(--bg);
   image-rendering: pixelated;
 }
 
-.result-fighter[data-winner="true"] img,
-.result-fighter[data-winner="true"] .result-no-art {
-  border-color: var(--accent);
+.winner-portrait img,
+.winner-portrait .no-art {
+  border: var(--border) solid var(--accent);
+  box-shadow: 6px 6px 0 var(--red-dark);
 }
 
-.result-no-art {
+.no-art {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  padding: 4px;
   color: var(--muted);
   font-size: 0.625rem;
-}
-
-.result-fighter figcaption {
+  text-align: center;
   overflow-wrap: anywhere;
 }
 
-.result-reasoning {
+.winner-reasoning {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg);
+  border: 2px solid var(--cyan);
+  text-align: left;
+  animation: rise 0.5s steps(5, end) 1s both;
+}
+
+.reasoning-title {
+  margin: 0 0 12px;
+  color: var(--cyan);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.reasoning-text {
   margin: 0;
   line-height: 2;
   overflow-wrap: anywhere;
+}
+
+.defeated {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  animation: rise 0.5s steps(5, end) 1.3s both;
+}
+
+.defeated-portrait {
+  flex: none;
+  width: 96px;
+}
+
+.defeated-portrait img,
+.defeated-portrait .no-art {
+  border: var(--border) solid var(--muted);
+}
+
+.defeated-portrait img {
+  filter: grayscale(1);
+}
+
+.defeated-portrait .no-art {
+  font-size: 0.5rem;
+}
+
+.defeated-info {
+  min-width: 0;
+}
+
+.defeated-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+}
+
+.defeated-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@keyframes card-slam {
+  0% {
+    opacity: 0;
+    transform: translateY(-32px) scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rise {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Footer */
@@ -421,12 +539,20 @@ body::after {
   }
 }
 
-/* Honour reduced motion preference */
+/* Honour reduced motion preference: no movement, just a simple fade for the card */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     transition: none !important;
     animation: none !important;
+  }
+
+  .winner-card,
+  .winner-banner,
+  .winner-portrait,
+  .winner-reasoning,
+  .defeated {
+    animation: fade-in 0.4s linear both !important;
   }
 }

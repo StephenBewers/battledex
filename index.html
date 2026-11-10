@@ -54,11 +54,31 @@
       <p class="loading-sub">The judges are deliberating</p>
     </section>
 
-    <!-- Result view. Basic for now; stage 5 replaces this with the animated winner's card. -->
+    <!-- Result view: the animated winner's card, then a New fight button.
+         The heading receives focus when the card appears. -->
     <section id="result" class="result" hidden aria-labelledby="result-title">
-      <h2 id="result-title" class="result-title" tabindex="-1"></h2>
-      <div id="result-fighters" class="result-fighters"></div>
-      <p id="result-reasoning" class="result-reasoning"></p>
+      <article class="winner-card">
+        <h2 id="result-title" class="winner-heading" tabindex="-1">
+          <span class="winner-banner">Winner!</span>
+          <span id="winner-name" class="winner-name"></span>
+        </h2>
+
+        <div id="winner-portrait" class="winner-portrait"></div>
+
+        <section class="winner-reasoning" aria-labelledby="reasoning-title">
+          <h3 id="reasoning-title" class="reasoning-title">Why they won</h3>
+          <p id="result-reasoning" class="reasoning-text"></p>
+        </section>
+
+        <aside class="defeated" aria-labelledby="defeated-label">
+          <div id="loser-portrait" class="defeated-portrait"></div>
+          <div class="defeated-info">
+            <p id="defeated-label" class="defeated-label">Defeated</p>
+            <p id="loser-name" class="defeated-name"></p>
+          </div>
+        </aside>
+      </article>
+
       <button type="button" id="new-fight" class="fight-button">New fight</button>
     </section>
 
