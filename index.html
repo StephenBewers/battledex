@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battleground</title>
+  <meta name="description" content="Type in two fighters and an AI decides who would win.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#fighters">Skip to fighter form</a>
+
+  <main class="screen">
+    <header class="masthead">
+      <h1 class="title">Battle<span class="title-accent">ground</span></h1>
+      <p class="tagline">Who would win?</p>
+    </header>
+
+    <form id="fight-form" class="panel" novalidate>
+      <fieldset id="fighters" class="fighters">
+        <legend class="visually-hidden">Choose two fighters</legend>
+
+        <div class="field">
+          <label for="fighter-a" class="label">Player 1</label>
+          <input id="fighter-a" name="fighterA" class="input" type="text"
+                 autocomplete="off" maxlength="60" placeholder="Grizzly bear">
+          <p class="field-error" id="error-a" role="alert"></p>
+        </div>
+
+        <div class="vs" aria-hidden="true">VS</div>
+
+        <div class="field">
+          <label for="fighter-b" class="label">Player 2</label>
+          <input id="fighter-b" name="fighterB" class="input" type="text"
+                 autocomplete="off" maxlength="60" placeholder="100 ducks">
+          <p class="field-error" id="error-b" role="alert"></p>
+        </div>
+      </fieldset>
+
+      <button type="submit" class="fight-button">Fight!</button>
+    </form>
+
+    <footer class="footer">
+      <p>Insert imagination to continue</p>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
