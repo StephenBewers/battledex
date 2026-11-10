@@ -26,7 +26,7 @@
         <div class="field">
           <label for="fighter-a" class="label">Player 1</label>
           <input id="fighter-a" name="fighterA" class="input" type="text"
-                 autocomplete="off" maxlength="60" placeholder="Grizzly bear">
+                 autocomplete="off" maxlength="60" placeholder="e.g. Grizzly bear">
           <p class="field-error" id="error-a" role="alert"></p>
         </div>
 
@@ -35,13 +35,32 @@
         <div class="field">
           <label for="fighter-b" class="label">Player 2</label>
           <input id="fighter-b" name="fighterB" class="input" type="text"
-                 autocomplete="off" maxlength="60" placeholder="100 ducks">
+                 autocomplete="off" maxlength="60" placeholder="e.g. 100 ducks">
           <p class="field-error" id="error-b" role="alert"></p>
         </div>
       </fieldset>
 
+      <p id="fight-error" class="fight-error" role="alert" hidden></p>
+
       <button type="submit" class="fight-button">Fight!</button>
     </form>
+
+    <!-- Only one of the three views (form, loading, result) is visible at a time.
+         app.js toggles their `hidden` attributes. -->
+
+    <!-- Loading view. Receives focus when shown, so it is read aloud. -->
+    <section id="loading" class="loading" hidden tabindex="-1" aria-label="Fight in progress">
+      <p class="loading-text">FIGHT!</p>
+      <p class="loading-sub">The judges are deliberating</p>
+    </section>
+
+    <!-- Result view. Basic for now; stage 5 replaces this with the animated winner's card. -->
+    <section id="result" class="result" hidden aria-labelledby="result-title">
+      <h2 id="result-title" class="result-title" tabindex="-1"></h2>
+      <div id="result-fighters" class="result-fighters"></div>
+      <p id="result-reasoning" class="result-reasoning"></p>
+      <button type="button" id="new-fight" class="fight-button">New fight</button>
+    </section>
 
     <footer class="footer">
       <p>Insert imagination to continue</p>
@@ -49,6 +68,7 @@
   </main>
 
   <script src="validation.js"></script>
+  <script src="api-client.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

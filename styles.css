@@ -177,6 +177,14 @@ body::after {
 .input::placeholder {
   color: var(--muted);
   opacity: 1;
+  /* Smaller than the typed text so the "e.g." examples fit on narrow phones */
+  font-size: 0.75rem;
+}
+
+/* The example disappears as soon as the field is focused, so it can't be
+   mistaken for a real value. The visible label still names the field. */
+.input:focus::placeholder {
+  color: transparent;
 }
 
 .input:focus-visible {
@@ -244,10 +252,124 @@ body::after {
   outline-offset: 4px;
 }
 
-.fight-button:disabled {
-  cursor: not-allowed;
-  background: var(--muted);
-  box-shadow: 0 6px 0 #6b6b9a;
+/* Views are switched with the `hidden` attribute; this beats the display
+   values set on .panel, .result etc. */
+[hidden] {
+  display: none !important;
+}
+
+/* Loading view */
+.loading {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.loading:focus {
+  outline: none;
+}
+
+.loading-text {
+  margin: 0;
+  font-size: clamp(2rem, 14vw, 4.5rem);
+  line-height: 1.2;
+  color: var(--red);
+  text-shadow: 4px 4px 0 var(--red-dark);
+  animation: blink 0.8s steps(1, end) infinite;
+}
+
+.loading-sub {
+  margin: 16px 0 0;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+
+@keyframes blink {
+  50% {
+    color: var(--accent);
+  }
+}
+
+.fight-error {
+  margin: 0;
+  padding: 16px;
+  background: var(--panel);
+  border: var(--border) solid var(--red);
+  color: var(--error);
+}
+
+.fight-error::before {
+  content: "! ";
+}
+
+/* Basic result display (replaced by the winner's card in stage 5) */
+.result {
+  background: var(--panel);
+  border: var(--border) solid var(--accent);
+  box-shadow: 6px 6px 0 var(--red-dark);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.result-title {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--accent);
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.result-title:focus {
+  outline: none;
+}
+
+.result-fighters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.result-fighter {
+  margin: 0;
+  text-align: center;
+  min-width: 0;
+}
+
+.result-fighter img,
+.result-no-art {
+  display: block;
+  width: 100%;
+  max-width: 160px;
+  aspect-ratio: 1;
+  margin: 0 auto 8px;
+  border: var(--border) solid var(--cyan);
+  image-rendering: pixelated;
+}
+
+.result-fighter[data-winner="true"] img,
+.result-fighter[data-winner="true"] .result-no-art {
+  border-color: var(--accent);
+}
+
+.result-no-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.625rem;
+}
+
+.result-fighter figcaption {
+  overflow-wrap: anywhere;
+}
+
+.result-reasoning {
+  margin: 0;
+  line-height: 2;
+  overflow-wrap: anywhere;
 }
 
 /* Footer */
