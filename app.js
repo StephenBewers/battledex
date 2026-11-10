@@ -9,10 +9,14 @@ const fields = {
   a: {
     input: document.getElementById("fighter-a"),
     error: document.getElementById("error-a"),
+    hint: document.getElementById("hint-a"),
+    thumb: document.getElementById("thumb-a"),
   },
   b: {
     input: document.getElementById("fighter-b"),
     error: document.getElementById("error-b"),
+    hint: document.getElementById("hint-b"),
+    thumb: document.getElementById("thumb-b"),
   },
 };
 const fightError = document.getElementById("fight-error");
@@ -27,29 +31,91 @@ const loserPortrait = document.getElementById("loser-portrait");
 const winnerActions = document.getElementById("winner-actions");
 const loserActions = document.getElementById("loser-actions");
 const saveMessage = document.getElementById("save-message");
+const openDexButton = document.getElementById("open-dex");
+const dexTitle = document.getElementById("dex-title");
+const dexNote = document.getElementById("dex-note");
+const dexEmpty = document.getElementById("dex-empty");
+const dexList = document.getElementById("dex-list");
+const dexMessage = document.getElementById("dex-message");
+const dexBackButton = document.getElementById("dex-back");
 const newFightButton = document.getElementById("new-fight");
 
 let isFighting = false;
 
+/* ---------- Fighter inputs: type a new fighter or pick a saved one ---------- */
+
+// Saved fighters, newest first. Cached so typing doesn't re-parse localStorage
+// on every keystroke; dexChanged() clears it whenever the BattleDex changes.
+let savedCache = null;
+
+function savedFighters() {
+  if (!savedCache) savedCache = BattleDex.loadAll().reverse();
+  return savedCache;
+}
+
+function makeFighterCombobox(key, otherKey) {
+  return createFighterCombobox({
+    input: fields[key].input,
+    toggle: document.getElementById(`toggle-${key}`),
+    listbox: document.getElementById(`listbox-${key}`),
+    status: document.getElementById("combo-status"),
+    getFighters: savedFighters,
+    // The fighter chosen in the other field can't be picked here.
+    getExcludedId: () => normalizeName(fields[otherKey].input.value),
+  });
+}
+
+const comboA = makeFighterCombobox("a", "b");
+const comboB = makeFighterCombobox("b", "a");
+
+// Call after anything that adds, removes or replaces saved fighters.
+function dexChanged() {
+  savedCache = null;
+  updateDexCount();
+  comboA.refresh();
+  comboB.refresh();
+  // A fighter may have just been saved or removed, so the markers can change.
+  updateSavedMarker("a");
+  updateSavedMarker("b");
+}
+
+// Keep in step with changes made in another tab.
+window.addEventListener("storage", (event) => {
+  if (event.key === "battledex" || event.key === null) dexChanged();
+});
+
 /* ---------- Views ---------- */
 
 // Exactly one view is visible at a time: the form, the loading screen or the result.
-const views = { form, loading: loadingView, result: resultView };
+const dexView = document.getElementById("battledex");
+const views = { form, loading: loadingView, result: resultView, battledex: dexView };
 
 function showView(name) {
   for (const [key, el] of Object.entries(views)) {
     el.hidden = key !== name;
   }
+  if (name === "form") dexChanged();
 }
 
 /* ---------- Field errors ---------- */
+
+// The input is described by its error and/or its "saved fighter" hint,
+// whichever are currently showing.
+function syncDescribedBy(key) {
+  const { input, error, hint } = fields[key];
+  const ids = [];
+  if (error.textContent) ids.push(error.id);
+  if (!hint.hidden) ids.push(hint.id);
+  if (ids.length) input.setAttribute("aria-describedby", ids.join(" "));
+  else input.removeAttribute("aria-describedby");
+}
 
 function showError(key, error) {
   const { input, error: el } = fields[key];
   el.textContent = error.message;
   el.dataset.type = error.type;
   input.setAttribute("aria-invalid", "true");
-  input.setAttribute("aria-describedby", el.id);
+  syncDescribedBy(key);
 }
 
 function clearError(key) {
@@ -57,7 +123,22 @@ function clearError(key) {
   el.textContent = "";
   delete el.dataset.type;
   input.removeAttribute("aria-invalid");
-  input.removeAttribute("aria-describedby");
+  syncDescribedBy(key);
+}
+
+// Marker for a typed or picked name that matches a saved fighter: a thumbnail
+// of the saved portrait inside the field, plus a text hint under it. It means
+// the saved art will be reused instead of generating a new portrait.
+function updateSavedMarker(key) {
+  const { input, hint, thumb } = fields[key];
+  const id = normalizeName(input.value);
+  const saved = id ? savedFighters().find((fighter) => fighter.id === id) : null;
+
+  if (saved && thumb.getAttribute("src") !== saved.image) thumb.src = saved.image;
+  thumb.hidden = !saved;
+  hint.hidden = !saved;
+  input.closest(".combo").dataset.saved = saved ? "true" : "false";
+  syncDescribedBy(key);
 }
 
 function clearAllErrors() {
@@ -103,7 +184,7 @@ function setSaveMessage(message, isError = false) {
 }
 
 const SAVE_ERRORS = {
-  quota: "The BattleDex is full. Remove a fighter to make room.",
+  quota: "The BattleDex is full. Open the BattleDex and remove a fighter to make room.",
   unavailable: "Can't save: your browser is blocking storage.",
   invalid: "Can't save this fighter.",
 };
@@ -145,6 +226,7 @@ async function saveToBattleDex(button, fighter, art) {
     }
     setSaveButtonState(button, fighter, "saved");
     setSaveMessage(`${fighter.name} saved to the BattleDex.`);
+    dexChanged();
   } catch {
     setSaveButtonState(button, fighter, "unsaved");
     setSaveMessage("Couldn't prepare this portrait for saving.", true);
@@ -199,6 +281,127 @@ function isValidVerdict(verdict) {
     typeof verdict.reasoning === "string"
   );
 }
+
+/* ---------- BattleDex view ---------- */
+
+// The button on the form shows how many fighters are saved.
+function updateDexCount() {
+  const count = BattleDex.loadAll().length;
+  openDexButton.textContent = count ? `BattleDex (${count})` : "BattleDex";
+  openDexButton.setAttribute(
+    "aria-label",
+    count === 1 ? "BattleDex, 1 saved fighter" : `BattleDex, ${count} saved fighters`
+  );
+}
+
+function setDexMessage(message, isError = false) {
+  dexMessage.textContent = message;
+  if (isError) dexMessage.dataset.error = "true";
+  else delete dexMessage.dataset.error;
+}
+
+// Removing a fighter throws away their art, so it takes two presses.
+// The button re-arms itself back to "Remove" after a few seconds.
+const REMOVE_CONFIRM_MS = 4000;
+
+function setRemoveState(button, fighter, armed) {
+  if (armed) {
+    button.dataset.armed = "true";
+    button.textContent = "Confirm";
+    // The visible word must appear in the accessible name (WCAG 2.5.3).
+    button.setAttribute("aria-label", `Confirm removing ${fighter.name} from the BattleDex`);
+  } else {
+    delete button.dataset.armed;
+    button.textContent = "Remove";
+    button.setAttribute("aria-label", `Remove ${fighter.name} from the BattleDex`);
+  }
+}
+
+function buildDexItem(fighter) {
+  const item = document.createElement("li");
+  item.className = "dex-item";
+
+  const img = document.createElement("img");
+  img.src = fighter.image;
+  img.alt = `Pixel portrait of ${fighter.name}`;
+  img.width = 96;
+  img.height = 96;
+
+  const info = document.createElement("div");
+  info.className = "dex-item-info";
+
+  const name = document.createElement("p");
+  name.className = "dex-item-name";
+  name.textContent = fighter.name;
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "remove-button";
+  setRemoveState(button, fighter, false);
+
+  let resetTimer;
+  button.addEventListener("click", () => {
+    clearTimeout(resetTimer);
+    if (button.dataset.armed === "true") {
+      removeFromDex(fighter);
+      return;
+    }
+    setRemoveState(button, fighter, true);
+    setDexMessage(`Press again to remove ${fighter.name}.`);
+    resetTimer = setTimeout(() => {
+      setRemoveState(button, fighter, false);
+      setDexMessage("");
+    }, REMOVE_CONFIRM_MS);
+  });
+
+  info.append(name, button);
+  item.append(img, info);
+  return item;
+}
+
+function renderDex() {
+  const available = BattleDex.isAvailable();
+  const fighters = BattleDex.loadAll().reverse(); // newest first
+  dexNote.hidden = available;
+  dexEmpty.hidden = !available || fighters.length > 0;
+  dexList.replaceChildren(...fighters.map(buildDexItem));
+}
+
+function removeFromDex(fighter) {
+  const buttons = [...dexList.querySelectorAll(".remove-button")];
+  const index = buttons.findIndex((b) => b.dataset.armed === "true");
+
+  const result = BattleDex.remove(fighter.id);
+  if (!result.ok) {
+    renderDex();
+    setDexMessage("Couldn't remove that fighter. Your browser is blocking storage.", true);
+    return;
+  }
+
+  renderDex();
+  dexChanged();
+  setDexMessage(`${fighter.name} removed from the BattleDex.`);
+
+  // Keep keyboard focus useful: the next fighter's button, else the previous
+  // one, else the heading when the list is now empty.
+  const remaining = dexList.querySelectorAll(".remove-button");
+  const target = remaining[Math.min(index, remaining.length - 1)];
+  (target || dexTitle).focus();
+}
+
+openDexButton.addEventListener("click", () => {
+  renderDex();
+  setDexMessage("");
+  showView("battledex");
+  dexTitle.focus();
+});
+
+dexBackButton.addEventListener("click", () => {
+  showView("form");
+  openDexButton.focus();
+});
+
+updateDexCount();
 
 /* ---------- Fight flow ---------- */
 
@@ -305,8 +508,10 @@ newFightButton.addEventListener("click", () => {
 fields.a.input.addEventListener("input", () => {
   clearError("a");
   if (fields.b.error.dataset.type === "mirror") clearError("b");
+  updateSavedMarker("a");
 });
 
 fields.b.input.addEventListener("input", () => {
   clearError("b");
+  updateSavedMarker("b");
 });

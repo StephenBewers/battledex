@@ -85,5 +85,23 @@ const BattleDex = (() => {
     }
   }
 
-  return { loadAll, get, save };
+  // Remove a fighter by id. Removing an id that isn't saved counts as success.
+  function remove(id) {
+    const storage = getStorage();
+    if (!storage) return { ok: false, reason: "unavailable" };
+    const remaining = loadAll().filter((entry) => entry.id !== id);
+    try {
+      storage.setItem(KEY, JSON.stringify(remaining));
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: "unavailable" };
+    }
+  }
+
+  // False when the browser blocks localStorage entirely.
+  function isAvailable() {
+    return getStorage() !== null;
+  }
+
+  return { loadAll, get, save, remove, isAvailable };
 })();
