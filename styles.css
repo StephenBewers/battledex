@@ -195,6 +195,15 @@ body::after {
   display: none;
 }
 
+/* Marker so errors don't rely on colour alone */
+.field-error::before {
+  content: "! ";
+}
+
+.input[aria-invalid="true"] {
+  border-color: var(--red);
+}
+
 .vs {
   justify-self: center;
   color: var(--red);
