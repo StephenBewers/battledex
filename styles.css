@@ -356,9 +356,7 @@ body::after {
 }
 
 .winner-portrait img,
-.winner-portrait .no-art,
-.defeated-portrait img,
-.defeated-portrait .no-art {
+.defeated-portrait img {
   display: block;
   width: 100%;
   aspect-ratio: 1;
@@ -366,21 +364,9 @@ body::after {
   image-rendering: pixelated;
 }
 
-.winner-portrait img,
-.winner-portrait .no-art {
+.winner-portrait img {
   border: var(--border) solid var(--accent);
   box-shadow: 6px 6px 0 var(--red-dark);
-}
-
-.no-art {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  color: var(--muted);
-  font-size: 0.625rem;
-  text-align: center;
-  overflow-wrap: anywhere;
 }
 
 .winner-reasoning {
@@ -419,17 +405,12 @@ body::after {
   width: 96px;
 }
 
-.defeated-portrait img,
-.defeated-portrait .no-art {
+.defeated-portrait img {
   border: var(--border) solid var(--muted);
 }
 
 .defeated-portrait img {
   filter: grayscale(1);
-}
-
-.defeated-portrait .no-art {
-  font-size: 0.5rem;
 }
 
 .defeated-info {

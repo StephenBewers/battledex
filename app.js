@@ -74,23 +74,21 @@ function hideFightError() {
 
 /* ---------- Winner's card ---------- */
 
-// Portrait image, or a simple fallback box when art is missing (the proper
-// placeholder sprite arrives in stage 6).
+// Portrait image. If the art failed or was refused, show the retro "?"
+// placeholder sprite instead, so the card always looks complete.
 function buildPortrait(fighter, art, size) {
+  const img = document.createElement("img");
+  img.width = size;
+  img.height = size;
   if (art && art.image) {
-    const img = document.createElement("img");
     img.src = art.image;
     img.alt = `Pixel portrait of ${fighter.name}`;
-    img.width = size;
-    img.height = size;
-    return img;
+  } else {
+    img.src = PLACEHOLDER_PORTRAIT;
+    img.alt = `Placeholder portrait for ${fighter.name}. The portrait could not be generated.`;
+    img.dataset.placeholder = "true";
   }
-  const missing = document.createElement("div");
-  missing.className = "no-art";
-  missing.setAttribute("role", "img");
-  missing.setAttribute("aria-label", `No portrait available for ${fighter.name}`);
-  missing.textContent = "No portrait";
-  return missing;
+  return img;
 }
 
 function renderResult(fighters, verdict, arts) {
@@ -122,6 +120,29 @@ function isValidVerdict(verdict) {
 
 /* ---------- Fight flow ---------- */
 
+// Give up on a request that never answers, so the user isn't stuck on the
+// loading screen. Generous, because real image generation can be slow.
+const API_TIMEOUT_MS = 60000;
+
+function withTimeout(promise, ms) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error("Request timed out");
+      error.name = "TimeoutError";
+      reject(error);
+    }, ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function verdictFailureMessage(reason) {
+  if (reason && reason.name === "TimeoutError") {
+    return "The judges took too long to decide. Press Fight to try again.";
+  }
+  return "The judges couldn't reach a verdict. Press Fight to try again.";
+}
+
 async function startFight(fighters) {
   isFighting = true;
   hideFightError();
@@ -133,20 +154,21 @@ async function startFight(fighters) {
   try {
     // Verdict and art run in parallel. Everything is settled before the reveal.
     const [verdictResult, artAResult, artBResult] = await Promise.allSettled([
-      getVerdict(fighters.a.name, fighters.b.name),
-      getArt(fighters.a.name),
-      getArt(fighters.b.name),
+      withTimeout(getVerdict(fighters.a.name, fighters.b.name), API_TIMEOUT_MS),
+      withTimeout(getArt(fighters.a.name), API_TIMEOUT_MS),
+      withTimeout(getArt(fighters.b.name), API_TIMEOUT_MS),
     ]);
 
     if (verdictResult.status !== "fulfilled" || !isValidVerdict(verdictResult.value)) {
       // Back to the form with the names intact so the user can retry.
-      showFightError("The judges couldn't reach a verdict. Please try again.");
+      showFightError(verdictFailureMessage(verdictResult.reason));
       showView("form");
       fightButton.focus();
       return;
     }
 
-    // A failed art call just leaves that fighter without a portrait.
+    // A failed, refused or timed-out art call leaves that fighter with the
+    // placeholder portrait (null here). The fight still completes.
     const arts = {
       a: artAResult.status === "fulfilled" ? artAResult.value : null,
       b: artBResult.status === "fulfilled" ? artBResult.value : null,

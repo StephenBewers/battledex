@@ -9,6 +9,8 @@
 //   slow          6 second responses (to look at the loading state)
 //   verdict-fail  getVerdict always rejects
 //   art-fail      getArt always rejects
+//   verdict-hang  getVerdict never settles (to test the client timeout)
+//   art-hang      getArt never settles
 
 const mockFlags = new Set(
   (new URLSearchParams(window.location.search).get("mock") || "")
@@ -36,6 +38,7 @@ function hashString(text) {
 
 async function getVerdict(nameA, nameB) {
   await mockDelay(1200, 2200);
+  if (mockFlags.has("verdict-hang")) return new Promise(() => {});
   if (mockFlags.has("verdict-fail")) {
     throw new Error("Mock verdict failure");
   }
@@ -82,6 +85,7 @@ function mockPortrait(name) {
 
 async function getArt(name) {
   await mockDelay(1800, 3200);
+  if (mockFlags.has("art-hang")) return new Promise(() => {});
   if (mockFlags.has("art-fail")) {
     throw new Error("Mock art failure");
   }
