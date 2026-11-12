@@ -12,6 +12,7 @@ function scenarios() {
     "rate limit (no time)": MESSAGES.rateLimit(undefined),
     "missing fighter 1": MESSAGES.missingFighter.a,
     "missing fighter 2": MESSAGES.missingFighter.b,
+    "name too long": MESSAGES.nameTooLong,
     "judge timeout": MESSAGES.judgeTimeout,
     "judge call failed": MESSAGES.judgeFailed,
     "moderation block": MESSAGES.moderationBlock(["Goku"]),
@@ -70,6 +71,7 @@ test("fightFailureMessage picks the right message for each failure", () => {
   assert.strictEqual(fightFailureMessage({ status: 504 }), MESSAGES.judgeTimeout);
   assert.strictEqual(fightFailureMessage({ status: 502 }), MESSAGES.judgeFailed);
   assert.strictEqual(fightFailureMessage({ name: "NetworkError" }), MESSAGES.networkLost);
+  assert.strictEqual(fightFailureMessage({ status: 400, code: "name_too_long" }), MESSAGES.nameTooLong);
   for (const other of [{ status: 500 }, { status: 503 }, { status: 400 }, new SyntaxError("bad json"), new TypeError("oops"), undefined, null, {}]) {
     assert.strictEqual(fightFailureMessage(other), MESSAGES.generic, String(other && other.name));
   }

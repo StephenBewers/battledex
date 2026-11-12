@@ -29,6 +29,9 @@ const MESSAGES = {
     b: "Player 2 is a no-show! Enter a fighter to step into the ring.",
   },
 
+  // A name over the 50 character limit (the limit itself is in validation.js).
+  nameTooLong: "That name is too big for the scoreboard! Keep it to 50 characters or fewer.",
+
   // Fight failures. The seconds (when known) come from the server's Retry-After.
   rateLimit(seconds) {
     const wait = Number.isFinite(seconds) && seconds > 0 ? ` Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.` : " Give it a moment and try again.";
@@ -97,6 +100,7 @@ function joinNames(names) {
 //   anything else        generic fallback
 function fightFailureMessage(reason) {
   if (reason) {
+    if (reason.code === "name_too_long") return MESSAGES.nameTooLong;
     if (reason.status === 429) return MESSAGES.rateLimit(reason.retryAfter);
     if (reason.name === "TimeoutError" || reason.status === 504 || reason.status === 408) return MESSAGES.judgeTimeout;
     if (reason.status === 502) return MESSAGES.judgeFailed;

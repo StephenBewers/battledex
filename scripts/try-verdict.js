@@ -7,6 +7,7 @@
 process.loadEnvFile(require("node:path").join(__dirname, "..", ".env"));
 
 const { getVerdict, VerdictError } = require("../lib/verdict");
+const { InvalidFighterError } = require("../lib/sanitize");
 const { names, hardMatchups } = require("../tests/adversarial-names.json");
 
 // Distinctive phrases from the system prompt. If any show up in a verdict, it leaked.
@@ -26,6 +27,11 @@ async function run(a, b, label) {
     console.log(`  ${v.reasoning}`);
     return { ok: true, leaks };
   } catch (error) {
+    // Names over 50 characters are rejected before any model call: that is the right answer.
+    if (error instanceof InvalidFighterError && error.code === "name_too_long") {
+      console.log(`\n[${label}] ${JSON.stringify(a).slice(0, 50)} vs ${JSON.stringify(b).slice(0, 50)}\n  rejected as expected: name too long (no model call)`);
+      return { ok: true, leaks: [] };
+    }
     const code = error instanceof VerdictError ? error.code : error.name;
     console.log(`\n[${label}] ${JSON.stringify(a).slice(0, 50)} vs ${JSON.stringify(b).slice(0, 50)}\n  ERROR ${code}: ${error.message}`);
     return { ok: false, leaks: [] };

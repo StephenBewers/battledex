@@ -255,6 +255,8 @@ Done after the real APIs and rate limiting work locally, and before deploying, s
 
 **Done when:** a 51-character name is rejected with a playful message in the browser and a `400` from the server, a 50-character name works, and no model call is made for an over-long name.
 
+**As built:** `MAX_FIGHTER_NAME_LENGTH` (50) lives in `validation.js` and is shared with the server through `lib/sanitize.js`. `checkNameLength` and `validateFighters` count characters after trimming and collapsing whitespace (an emoji counts once); a missing name is reported as missing before length is checked. In the browser the error shows live while typing or pasting, with the same text each time so a screen reader isn't re-announced per keystroke, and again on submit with focus on the first problem field. The inputs allow `maxlength="100"` so a too-long paste is explained instead of silently cut. On the server, `checkFighters` rejects over-long names before any model call with a `400` and code `name_too_long` (it never truncates), and `api-client.js` passes that code along so the right message shows even if the browser check were bypassed. The check runs before the rate limiter, so rejected names don't use up the limit. The sanitizer still caps at 50 as a backstop. One side effect: BattleDex fighters saved earlier with names of 51-60 characters will show the error if picked again, until the name is shortened.
+
 ---
 
 ## Phase F — Deploy

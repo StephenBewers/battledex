@@ -49,6 +49,20 @@ test("bad input throws InvalidFighterError and makes no API call", async () => {
   assert.strictEqual(client.calls.length, 0);
 });
 
+test("names over 50 characters are rejected (not cut short), with their own code, and make no API call", async () => {
+  const client = fakeClient(reply(good));
+  for (const [a, b] of [["x".repeat(51), "Vegeta"], ["Goku", "y".repeat(200)], ["\u{1F600}".repeat(51), "Vegeta"]]) {
+    await assert.rejects(getVerdict(a, b, { client }), (e) => e instanceof InvalidFighterError && e.code === "name_too_long");
+  }
+  assert.strictEqual(client.calls.length, 0);
+});
+
+test("a name of exactly 50 characters is fine", async () => {
+  const client = fakeClient(reply(good));
+  await getVerdict("x".repeat(50), "\u{1F600}".repeat(50), { client });
+  assert.strictEqual(client.calls.length, 1);
+});
+
 test("a mirror match is allowed and tells the judge so", async () => {
   const client = fakeClient(reply({ ...good, winner: "A", energyA: 3, energyB: 0 }));
   const verdict = await getVerdict("Goku", " goku ", { client });

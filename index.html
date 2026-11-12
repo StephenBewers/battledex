@@ -20,13 +20,16 @@
     <form id="fight-form" class="panel" novalidate>
       <fieldset id="fighters" class="fighters">
         <legend class="visually-hidden">Choose two fighters</legend>
+        <!-- Names are limited to 50 characters (see validation.js). The inputs
+             deliberately allow a bit more (maxlength 100) so a too-long name or
+             paste shows the friendly error instead of being cut off silently. -->
 
         <div class="field">
           <label for="fighter-a" class="label">Player 1</label>
           <div class="combo">
             <input id="fighter-a" name="fighterA" class="input" type="text"
                    role="combobox" aria-autocomplete="list" aria-expanded="false"
-                   aria-controls="listbox-a" autocomplete="off" maxlength="60"
+                   aria-controls="listbox-a" autocomplete="off" maxlength="100"
                    placeholder="e.g. Grizzly bear">
             <img id="thumb-a" class="combo-thumb" alt="" width="36" height="36" hidden>
             <button type="button" id="toggle-a" class="combo-toggle" tabindex="-1" hidden
@@ -46,7 +49,7 @@
           <div class="combo">
             <input id="fighter-b" name="fighterB" class="input" type="text"
                    role="combobox" aria-autocomplete="list" aria-expanded="false"
-                   aria-controls="listbox-b" autocomplete="off" maxlength="60"
+                   aria-controls="listbox-b" autocomplete="off" maxlength="100"
                    placeholder="e.g. 100 ducks">
             <img id="thumb-b" class="combo-thumb" alt="" width="36" height="36" hidden>
             <button type="button" id="toggle-b" class="combo-toggle" tabindex="-1" hidden

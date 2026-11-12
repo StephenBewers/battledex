@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { sanitizeName, MAX_NAME_LENGTH } = require("../lib/sanitize");
+const { sanitizeName, cleanedLength, MAX_NAME_LENGTH } = require("../lib/sanitize");
+const { nameLength } = require("../validation");
 const { names } = require("./adversarial-names.json");
 
 test("trims and collapses whitespace", () => {
@@ -37,3 +38,22 @@ for (const { label, name } of names) {
     assert.strictEqual(out, out.trim());
   });
 }
+
+test("the limit is 50 and is shared with the browser", () => {
+  assert.strictEqual(MAX_NAME_LENGTH, 50);
+  assert.strictEqual(Array.from(sanitizeName("x".repeat(80))).length, 50);
+});
+
+test("cleanedLength counts before any cap", () => {
+  assert.strictEqual(cleanedLength("x".repeat(80)), 80);
+  assert.strictEqual(cleanedLength("  a   b  "), 3);
+  assert.strictEqual(cleanedLength("Go\u200bku"), 4);
+  assert.strictEqual(cleanedLength(undefined), 0);
+});
+
+test("the server never counts more characters than the browser, so a name the browser accepts is accepted", () => {
+  const samples = ["Goku", "  a \t b ", "Go\u200bku", "x\u0000y\u0007z", "\u{1F600}\u{1F600}", "a".repeat(50), "  " + "b".repeat(50) + "  ", "tab\there\nnewline", "e\u0301"];
+  for (const sample of samples) {
+    assert.ok(cleanedLength(sample) <= nameLength(sample), JSON.stringify(sample));
+  }
+});

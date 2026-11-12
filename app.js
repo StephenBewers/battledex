@@ -595,12 +595,15 @@ newFightButton.addEventListener("click", () => {
 });
 
 // Clear an error as soon as the user edits the field it belongs to.
-fields.a.input.addEventListener("input", () => {
-  clearError("a");
-  updateSavedMarker("a");
-});
+// A name over the length limit shows its error straight away (typing or pasting),
+// rather than waiting for Fight. The text is the same every time, so a screen
+// reader isn't re-announced on every keystroke.
+function handleNameInput(key) {
+  clearError(key);
+  const tooLong = checkNameLength(fields[key].input.value);
+  if (tooLong) showError(key, tooLong);
+  updateSavedMarker(key);
+}
 
-fields.b.input.addEventListener("input", () => {
-  clearError("b");
-  updateSavedMarker("b");
-});
+fields.a.input.addEventListener("input", () => handleNameInput("a"));
+fields.b.input.addEventListener("input", () => handleNameInput("b"));

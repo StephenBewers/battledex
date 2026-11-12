@@ -164,6 +164,13 @@ async function getFight(nameA, nameB, { needArtA, needArtB }) {
   if (!response.ok) {
     const error = new Error("The fight request failed");
     error.status = response.status;
+    // The server's error code (like "name_too_long"), if it sent one.
+    try {
+      const data = await response.json();
+      if (data && data.error && typeof data.error.code === "string") error.code = data.error.code;
+    } catch {
+      // Not JSON: the status alone is enough.
+    }
     const retryAfter = Number(response.headers.get("Retry-After"));
     if (retryAfter > 0) error.retryAfter = retryAfter;
     throw error;

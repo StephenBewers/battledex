@@ -114,6 +114,35 @@ test("empty names are a 400 and make no model calls", async () => {
   }
 });
 
+test("names over 50 characters are a 400 with name_too_long and make no model calls", async () => {
+  for (const [a, b] of [["x".repeat(51), "Vegeta"], ["Goku", "y".repeat(500)], ["\u{1F600}".repeat(51), "Vegeta"], [" ".repeat(10) + "z".repeat(51), "Vegeta"]]) {
+    const deps = fakes();
+    const res = await post({ ...body, fighterA: a, fighterB: b }, deps);
+    assert.strictEqual(res.status, 400, `${a.length} / ${b.length}`);
+    assert.strictEqual(res.body.error.code, "name_too_long");
+    assert.strictEqual(deps.calls.verdict.length + deps.calls.art.length, 0);
+  }
+});
+
+test("names of exactly 50 characters work, including emoji and padded names", async () => {
+  for (const name of ["x".repeat(50), "\u{1F600}".repeat(50), "   " + "x".repeat(50) + "  \n"]) {
+    const deps = fakes();
+    const res = await post({ ...body, fighterA: name, fighterB: "Vegeta" }, deps);
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(deps.calls.verdict.length, 1);
+  }
+});
+
+test("an over-long name doesn't use up the rate limit", async () => {
+  const rateLimiter = createRateLimiter({ store: new MemoryStore(), limit: 1 });
+  const deps = { ...fakes(), rateLimiter };
+  for (let i = 0; i < 5; i++) {
+    const res = await handleFight({ method: "POST", body: { ...body, fighterA: "x".repeat(51) }, ip: "1.1.1.1" }, deps);
+    assert.strictEqual(res.status, 400);
+  }
+  assert.strictEqual((await handleFight({ method: "POST", body, ip: "1.1.1.1" }, deps)).status, 200);
+});
+
 test("mirror matches are valid, and the art is generated only once and shared", async () => {
   for (const [a, b] of [["Goku", "Goku"], ["Goku", " goku "], ["GOKU", "goku"]]) {
     const deps = fakes();
