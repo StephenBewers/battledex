@@ -206,6 +206,8 @@ Done after the real APIs and rate limiting work locally, and before deploying, s
 
 **Done when:** the card shows two bars that animate from full to the right values, the loser's is empty, the numbers are readable as text, reduced motion shows the final state with no animation, and an axe scan of the result view has no violations.
 
+**As built:** `#energy` sits between the save button and the reasoning. Each fighter gets a segmented bar (`role="meter"` with `aria-valuetext` like "26 percent energy remaining", named by the fighter's label, and the visible percentage hidden from screen readers so it isn't read twice). The fill drains from 100% in 20 steps and tints from green towards its final colour (green above 50, yellow 21-50, red 20 and under). The final colour and width are set in CSS, so with reduced motion the bars simply show the final state. `energy.js` holds the pure validity and level helpers (tested in `tests/energy.test.js`); invalid energy hides the bars. In a mirror match the labels read "Goku (Player 1)" and "Goku (Player 2)". Checked at 320px with axe (no violations, no horizontal scroll), with long names, and for contrast (fills are 5.4:1 or better against the bar track).
+
 ### Stage 16: Smaller saved images (10KB max)
 **Goal:** every image in the BattleDex is at most 10KB, so 10-20 saved fighters fit comfortably in localStorage. (Images are currently about 17-34KB each.)
 - The limit is on what is actually stored: the saved `data:image/...` string must be at most 10KB (10,240 characters).

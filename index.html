@@ -90,6 +90,34 @@
         <div id="winner-portrait" class="winner-portrait"></div>
         <div id="winner-actions" class="fighter-actions winner-actions"></div>
 
+        <!-- Energy bars: both fighters start at 100%, the loser always ends at 0.
+             app.js fills this in, and hides it if the energy values are missing. -->
+        <section id="energy" class="energy" aria-labelledby="energy-title" hidden>
+          <h3 id="energy-title" class="energy-title">Energy left</h3>
+          <ul class="energy-list" role="list">
+            <li class="energy-row">
+              <span id="energy-name-a" class="energy-name"></span>
+              <div class="energy-meter">
+                <div id="energy-bar-a" class="energy-bar" role="meter" aria-labelledby="energy-name-a"
+                     aria-valuemin="0" aria-valuemax="100">
+                  <div id="energy-fill-a" class="energy-fill"></div>
+                </div>
+                <span id="energy-value-a" class="energy-value" aria-hidden="true"></span>
+              </div>
+            </li>
+            <li class="energy-row">
+              <span id="energy-name-b" class="energy-name"></span>
+              <div class="energy-meter">
+                <div id="energy-bar-b" class="energy-bar" role="meter" aria-labelledby="energy-name-b"
+                     aria-valuemin="0" aria-valuemax="100">
+                  <div id="energy-fill-b" class="energy-fill"></div>
+                </div>
+                <span id="energy-value-b" class="energy-value" aria-hidden="true"></span>
+              </div>
+            </li>
+          </ul>
+        </section>
+
         <section class="winner-reasoning" aria-labelledby="reasoning-title">
           <h3 id="reasoning-title" class="reasoning-title">Why they won</h3>
           <p id="result-reasoning" class="reasoning-text"></p>
@@ -135,6 +163,7 @@
   </noscript>
 
   <script src="validation.js"></script>
+  <script src="energy.js"></script>
   <script src="api-client.js"></script>
   <script src="placeholder.js"></script>
   <script src="image-utils.js"></script>

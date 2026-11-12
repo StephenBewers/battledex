@@ -32,6 +32,16 @@ const winnerActions = document.getElementById("winner-actions");
 const loserActions = document.getElementById("loser-actions");
 const saveMessage = document.getElementById("save-message");
 const artNote = document.getElementById("art-note");
+const energySection = document.getElementById("energy");
+const energyRows = {};
+for (const key of ["a", "b"]) {
+  energyRows[key] = {
+    name: document.getElementById(`energy-name-${key}`),
+    bar: document.getElementById(`energy-bar-${key}`),
+    fill: document.getElementById(`energy-fill-${key}`),
+    value: document.getElementById(`energy-value-${key}`),
+  };
+}
 const openDexButton = document.getElementById("open-dex");
 const dexTitle = document.getElementById("dex-title");
 const dexNote = document.getElementById("dex-note");
@@ -263,6 +273,27 @@ function setArtNote(fighters, artStatus) {
   artNote.textContent = `The image filter blocked a portrait for ${names}, so a placeholder is shown.`;
 }
 
+/* ---------- Energy bars ---------- */
+
+// `labelOf(key)` adds the " (Player 1)" style label in a mirror match.
+function renderEnergy(fighters, verdict, labelOf) {
+  const valid = hasValidEnergy(verdict);
+  energySection.hidden = !valid;
+  if (!valid) return;
+
+  for (const key of ["a", "b"]) {
+    const value = key === "a" ? verdict.energyA : verdict.energyB;
+    const row = energyRows[key];
+    row.name.textContent = fighters[key].name + labelOf(key);
+    row.bar.setAttribute("aria-valuenow", String(value));
+    row.bar.setAttribute("aria-valuetext", `${value} percent energy remaining`);
+    // The CSS animation drains the bar from full down to this value.
+    row.fill.style.setProperty("--energy", `${value}%`);
+    row.fill.dataset.level = energyLevel(value);
+    row.value.textContent = `${value}%`;
+  }
+}
+
 function renderResult(fighters, verdict, arts, artStatus) {
   const winnerKey = verdict.winner === "A" ? "a" : "b";
   const loserKey = winnerKey === "a" ? "b" : "a";
@@ -283,6 +314,7 @@ function renderResult(fighters, verdict, arts, artStatus) {
   loserActions.replaceChildren(...(isMirror ? [] : [buildSaveControl(loser, arts[loserKey])]));
   setSaveMessage("");
   setArtNote(fighters, artStatus);
+  renderEnergy(fighters, verdict, (key) => (isMirror ? ` (Player ${key === "a" ? 1 : 2})` : ""));
 
   // Un-hiding the view restarts the CSS entrance animation each time.
   showView("result");

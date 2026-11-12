@@ -16,6 +16,7 @@
   --red-dark: #b32d2d;
   --error: #ff9a9a;
   --ink: #0d0d26;
+  --energy-high: #5be37d;
 
   --font: "Press Start 2P", "Courier New", ui-monospace, monospace;
   --gutter: 16px;
@@ -688,6 +689,108 @@ body::after {
   content: "! ";
 }
 
+/* Energy bars. Segmented, stepped, fighting-game style. The number is always
+   shown as text, so colour is only an extra cue. */
+.energy {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg);
+  border: 2px solid var(--muted);
+  text-align: left;
+  animation: rise 0.5s steps(5, end) 0.8s both;
+}
+
+.energy-title {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.energy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.energy-name {
+  display: block;
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.energy-meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.energy-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  background: var(--panel);
+  border: 3px solid var(--text);
+  overflow: hidden;
+}
+
+.energy-fill {
+  --energy: 100%;
+  width: var(--energy);
+  height: 100%;
+  /* The final colour is set here, not by the animation, so it is right even
+     with reduced motion (no animation) on. */
+  background: var(--energy-end, var(--energy-high));
+  animation:
+    energy-drain 1.4s steps(20, end) 1.4s both,
+    energy-tint 1.4s steps(4, end) 1.4s both;
+}
+
+.energy-fill[data-level="mid"] {
+  --energy-end: var(--accent);
+}
+
+.energy-fill[data-level="low"] {
+  --energy-end: var(--red);
+}
+
+/* Chunky segments over the fill, like the bars in fighting games. */
+.energy-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), var(--panel) calc(10% - 2px) 10%);
+  pointer-events: none;
+}
+
+.energy-value {
+  flex: none;
+  min-width: 5ch;
+  text-align: right;
+  font-size: 0.75rem;
+}
+
+@keyframes energy-drain {
+  from {
+    width: 100%;
+  }
+}
+
+@keyframes energy-tint {
+  from {
+    background-color: var(--energy-high);
+  }
+  to {
+    background-color: var(--energy-end, var(--energy-high));
+  }
+}
+
 .winner-reasoning {
   width: 100%;
   padding: 16px;
@@ -854,6 +957,7 @@ body::after {
   .winner-banner,
   .winner-portrait,
   .winner-actions,
+  .energy,
   .winner-reasoning,
   .defeated {
     animation: fade-in 0.4s linear both !important;
