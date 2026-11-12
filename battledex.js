@@ -7,7 +7,8 @@
 //
 // localStorage can be missing, blocked or full, so every access is wrapped.
 // save() returns { ok: true } or { ok: false, reason } where reason is
-// "invalid", "unavailable" or "quota". Nothing here throws.
+// "invalid", "unavailable", "quota" or "too_large" (the image is over
+// IMAGE_BUDGET_CHARS from image-utils.js, about 10KB). Nothing here throws.
 
 const BattleDex = (() => {
   const KEY = "battledex";
@@ -62,6 +63,7 @@ const BattleDex = (() => {
   // Add a fighter, or replace the existing entry with the same id.
   function save(fighter) {
     if (!isFighter(fighter)) return { ok: false, reason: "invalid" };
+    if (fighter.image.length > IMAGE_BUDGET_CHARS) return { ok: false, reason: "too_large" };
 
     const storage = getStorage();
     if (!storage) return { ok: false, reason: "unavailable" };

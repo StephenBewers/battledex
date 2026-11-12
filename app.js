@@ -196,6 +196,7 @@ const SAVE_ERRORS = {
   quota: "The BattleDex is full. Open the BattleDex and remove a fighter to make room.",
   unavailable: "Can't save: your browser is blocking storage.",
   invalid: "Can't save this fighter.",
+  too_large: "Can't save: this portrait is too detailed to shrink down.",
 };
 
 // The button uses aria-disabled rather than disabled so keyboard focus stays put.
@@ -236,9 +237,12 @@ async function saveToBattleDex(button, fighter, art) {
     setSaveButtonState(button, fighter, "saved");
     setSaveMessage(`${fighter.name} saved to the BattleDex.`);
     dexChanged();
-  } catch {
+  } catch (error) {
     setSaveButtonState(button, fighter, "unsaved");
-    setSaveMessage("Couldn't prepare this portrait for saving.", true);
+    setSaveMessage(
+      error instanceof ImageTooLargeError ? SAVE_ERRORS.too_large : "Couldn't prepare this portrait for saving.",
+      true
+    );
   }
 }
 
@@ -451,6 +455,24 @@ dexBackButton.addEventListener("click", () => {
 });
 
 updateDexCount();
+
+// Fighters saved before the 10KB image limit are shrunk once, in the
+// background. Anything that can't be shrunk is left as it is.
+async function shrinkOversizedFighters() {
+  const oversized = BattleDex.loadAll().filter((fighter) => fighter.image.length > IMAGE_BUDGET_CHARS);
+  let changed = false;
+  for (const fighter of oversized) {
+    try {
+      const image = await downsizeImage(fighter.image);
+      if (BattleDex.save({ ...fighter, image }).ok) changed = true;
+    } catch {
+      // Leave this one alone.
+    }
+  }
+  if (changed) dexChanged();
+}
+
+shrinkOversizedFighters();
 
 /* ---------- Fight flow ---------- */
 

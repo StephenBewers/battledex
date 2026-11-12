@@ -219,6 +219,8 @@ Done after the real APIs and rate limiting work locally, and before deploying, s
 
 **Done when:** every portrait saved from a real fight comes out at 10KB or less and still looks good at its display size, 20 saved fighters fit in storage, and old oversized entries are shrunk.
 
+**As built:** `searchEncoding` (pure, in `image-utils.js`, tested in `tests/image-utils.test.js`) tries 256, 224, 192, 160, 128, 112 and 96px, and at the first size that fits at WebP quality 0.5 or better it binary-searches the highest quality that stays under 10,240 characters. A last-resort pass allows quality down to 0.2, and anything that still doesn't fit fails with a clear "too detailed to shrink" message. `BattleDex.save` refuses over-budget images, and oversized entries from before the limit are shrunk once at startup (their `createdAt` is kept; ones that can't be shrunk are left alone). Measured on 16 real portraits (people, a group, an object, abstract concepts and the hostile names): every one came out between 10,127 and 10,239 characters, at 160-256px (the busiest, "10 cows" and "Time", at 160px; most at 192-224px), taking about 55ms each. 20 saved fighters take about 201KB in total. Portraits keep `image-rendering: pixelated`, which still looks good from 160-256px sources at the 240px display size.
+
 ### Stage 17: Loading messages and a playful voice for every error
 **Goal:** waiting and failing both sound like the arena announcer from the verdicts: playful and punchy, but still clear about what happened and what to do next.
 - Put all user-facing copy in one place (e.g. `messages.js`, loaded before `app.js`) so the tone stays consistent and it can be tested.
