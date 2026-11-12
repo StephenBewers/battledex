@@ -11,6 +11,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.join(__dirname, "..");
+const publicDir = path.join(root, "public");
 try {
   process.loadEnvFile(path.join(root, ".env"));
 } catch {
@@ -32,8 +33,8 @@ const TYPES = {
   ".webmanifest": "application/manifest+json",
 };
 
-// Only files directly in the project root with these extensions are served, so
-// .env, node_modules, lib and everything else stay private.
+// Only files directly in public/ with these extensions are served (the same
+// folder Vercel serves), so .env, node_modules, lib and everything else stay private.
 function serveStatic(req, res) {
   const urlPath = new URL(req.url, "http://localhost").pathname;
   const name = urlPath === "/" ? "index.html" : urlPath.slice(1);
@@ -42,7 +43,7 @@ function serveStatic(req, res) {
     res.writeHead(404).end("Not found");
     return;
   }
-  fs.readFile(path.join(root, name), (error, data) => {
+  fs.readFile(path.join(publicDir, name), (error, data) => {
     if (error) {
       res.writeHead(404).end("Not found");
       return;

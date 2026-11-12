@@ -3,7 +3,7 @@ const assert = require("node:assert");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const root = path.join(__dirname, "..");
+const root = path.join(__dirname, "..", "public");
 const files = fs.readdirSync(root).filter((f) => f.endsWith(".js") || f.endsWith(".html"));
 
 // Names and model text must only ever reach the page as text, never as markup

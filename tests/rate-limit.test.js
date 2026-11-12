@@ -75,3 +75,31 @@ test("client IP: missing or junk values become 'unknown'", () => {
   assert.strictEqual(getClientIp(undefined, undefined, { onVercel: false }), "unknown");
   assert.strictEqual(getClientIp({}, "x".repeat(100), { onVercel: false }), "unknown");
 });
+
+// --- Redis store (stage 19) ---
+const { RedisStore, createStoreFromEnv, MemoryStore: MemStore } = require("../lib/rate-limit");
+
+test("RedisStore runs INCR, PEXPIRE NX and PTTL in one transaction", async () => {
+  const calls = [];
+  const chain = {
+    incr: (k) => (calls.push(["incr", k]), chain),
+    pexpire: (k, ms, mode) => (calls.push(["pexpire", k, ms, mode]), chain),
+    pttl: (k) => (calls.push(["pttl", k]), chain),
+    exec: async () => [2, 0, 41_000],
+  };
+  const store = new RedisStore({ multi: () => chain });
+  assert.deepEqual(await store.increment("fight:1.2.3.4", 60_000), { count: 2, resetMs: 41_000 });
+  assert.deepEqual(calls, [["incr", "fight:1.2.3.4"], ["pexpire", "fight:1.2.3.4", 60_000, "NX"], ["pttl", "fight:1.2.3.4"]]);
+});
+
+test("RedisStore falls back to the full window if the TTL is missing", async () => {
+  const chain = { incr: () => chain, pexpire: () => chain, pttl: () => chain, exec: async () => [1, 1, -1] };
+  assert.equal((await new RedisStore({ multi: () => chain }).increment("k", 60_000)).resetMs, 60_000);
+});
+
+test("createStoreFromEnv: memory locally, Redis when configured, an error on Vercel without Redis", () => {
+  assert.ok(createStoreFromEnv({}) instanceof MemStore);
+  assert.ok(createStoreFromEnv({ KV_REST_API_URL: "https://x.upstash.io", KV_REST_API_TOKEN: "t" }) instanceof RedisStore);
+  assert.ok(createStoreFromEnv({ UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" }) instanceof RedisStore);
+  assert.throws(() => createStoreFromEnv({ VERCEL: "1" }), /not configured/);
+});

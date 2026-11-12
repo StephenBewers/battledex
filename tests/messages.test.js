@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { MESSAGES, joinNames, uniqueNames, fightFailureMessage, artNoteMessage, shuffled } = require("../messages");
-const { validateFighters } = require("../validation");
+const { MESSAGES, joinNames, uniqueNames, fightFailureMessage, artNoteMessage, shuffled } = require("../public/messages");
+const { validateFighters } = require("../public/validation");
 
 const fighters = { a: { name: "Goku" }, b: { name: "Vegeta" } };
 

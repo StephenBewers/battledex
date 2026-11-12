@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { IMAGE_BUDGET_CHARS, IMAGE_SIZES, searchEncoding } = require("../image-utils");
+const { IMAGE_BUDGET_CHARS, IMAGE_SIZES, searchEncoding } = require("../public/image-utils");
 
 // A fake encoder: the data URI length grows with size squared and with quality.
 const fakeEncode = (bytesAt256Q1) => (size, quality) =>

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { hasValidEnergy, energyLevel } = require("../energy");
+const { hasValidEnergy, energyLevel } = require("../public/energy");
 
 const v = (winner, energyA, energyB) => ({ winner, energyA, energyB });
 

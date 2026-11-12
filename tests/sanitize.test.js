@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
 const { sanitizeName, cleanedLength, MAX_NAME_LENGTH } = require("../lib/sanitize");
-const { nameLength } = require("../validation");
+const { nameLength } = require("../public/validation");
 const { names } = require("./adversarial-names.json");
 
 test("trims and collapses whitespace", () => {

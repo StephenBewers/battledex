@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { MAX_FIGHTER_NAME_LENGTH, validateFighters, normalizeName, nameLength, checkNameLength } = require("../validation");
-const { MESSAGES } = require("../messages");
+const { MAX_FIGHTER_NAME_LENGTH, validateFighters, normalizeName, nameLength, checkNameLength } = require("../public/validation");
+const { MESSAGES } = require("../public/messages");
 
 test("two different names are valid", () => {
   const result = validateFighters("Goku", "Vegeta");

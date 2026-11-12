@@ -116,7 +116,7 @@ for (const { label, name } of names) {
 }
 
 test("the frontend mock verdict matches the strict schema", async () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "api-client.js"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "public", "api-client.js"), "utf8");
   const context = vm.createContext({ window: { location: { search: "?mock=fast" } }, setTimeout, URLSearchParams });
   vm.runInContext(source, context);
   for (const [a, b] of [["Goku", "Vegeta"], ["10 cows", "100 ducks"], ["Time", "Death"], ["a", "b"]]) {
