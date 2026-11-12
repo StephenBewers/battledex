@@ -120,7 +120,7 @@ test("the frontend mock verdict matches the strict schema", async () => {
   const context = vm.createContext({ window: { location: { search: "?mock=fast" } }, setTimeout, URLSearchParams });
   vm.runInContext(source, context);
   for (const [a, b] of [["Goku", "Vegeta"], ["10 cows", "100 ducks"], ["Time", "Death"], ["a", "b"]]) {
-    const verdict = await context.getVerdict(a, b);
+    const verdict = await context.mockVerdict(a, b);
     const result = validateVerdict(verdict);
     assert.ok(result.ok, JSON.stringify(result.errors));
   }

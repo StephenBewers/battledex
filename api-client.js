@@ -1,16 +1,22 @@
-// Mock API layer (stage 4). Same function signatures the real client will use
-// in stage 11, so app.js doesn't change when the mocks are swapped out.
+// API client. One call runs a whole fight:
 //
-//   getVerdict(nameA, nameB) -> { winner: "A" | "B", reasoning, energyA, energyB }
-//   getArt(name)             -> { image }   (an image URL / data URI)
+//   getFight(nameA, nameB, { needArtA, needArtB })
+//     -> { verdict: { winner: "A" | "B", reasoning, energyA, energyB },
+//          art: { a, b },           each art value is a data URI, or null
+//          artStatus: { a, b } }    "generated", "not_requested",
+//                                   "moderation_blocked" or "failed"
 //
-// Dev flags via the query string, comma separated, e.g. ?mock=fast,art-fail
+// By default it calls the real POST /api/fight. Add ?mock to the page URL to use
+// the built-in mock instead (no server or API keys needed). Mock flags are comma
+// separated, e.g. ?mock=fast,art-fail
 //   fast          near-instant responses (for tests)
 //   slow          6 second responses (to look at the loading state)
-//   verdict-fail  getVerdict always rejects
-//   art-fail      getArt always rejects
-//   verdict-hang  getVerdict never settles (to test the client timeout)
-//   art-hang      getArt never settles
+//   verdict-fail  the fight always fails (like a verdict error)
+//   art-fail      art comes back null (status "failed"), so the placeholder is used
+//   art-blocked   art comes back null (status "moderation_blocked")
+//   rate-limited  the fight is rejected like a 429 (retry after 42 seconds)
+//   verdict-hang  the fight never settles (to test the client timeout)
+//   art-hang      same as verdict-hang (the fight waits for the art)
 
 const mockFlags = new Set(
   (new URLSearchParams(window.location.search).get("mock") || "")
@@ -36,7 +42,7 @@ function hashString(text) {
   return hash >>> 0;
 }
 
-async function getVerdict(nameA, nameB) {
+async function mockVerdict(nameA, nameB) {
   await mockDelay(1200, 2200);
   if (mockFlags.has("verdict-hang")) return new Promise(() => {});
   if (mockFlags.has("verdict-fail")) {
@@ -85,11 +91,70 @@ function mockPortrait(name) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-async function getArt(name) {
+async function mockArt(name) {
   await mockDelay(1800, 3200);
   if (mockFlags.has("art-hang")) return new Promise(() => {});
+  if (mockFlags.has("art-blocked")) {
+    throw Object.assign(new Error("Mock art blocked"), { code: "moderation_blocked" });
+  }
   if (mockFlags.has("art-fail")) {
     throw new Error("Mock art failure");
   }
-  return { image: mockPortrait(name) };
+  return mockPortrait(name);
+}
+
+// The mock fight behaves like the server: verdict and needed art in parallel,
+// a failed art call becomes null, a failed verdict fails the whole fight.
+async function mockFight(nameA, nameB, { needArtA, needArtB }) {
+  if (mockFlags.has("rate-limited")) {
+    await mockDelay(200, 400);
+    throw Object.assign(new Error("Mock rate limit"), { status: 429, retryAfter: 42 });
+  }
+
+  // Resolves to { image, status } so a failure carries its reason.
+  const art = (needed, name) =>
+    needed
+      ? mockArt(name).then(
+          (image) => ({ image, status: "generated" }),
+          (error) => ({ image: null, status: error.code === "moderation_blocked" ? "moderation_blocked" : "failed" })
+        )
+      : { image: null, status: "not_requested" };
+
+  const [verdict, artA, artB] = await Promise.all([
+    mockVerdict(nameA, nameB),
+    art(needArtA, nameA),
+    art(needArtB, nameB),
+  ]);
+  return {
+    verdict,
+    art: { a: artA.image, b: artB.image },
+    artStatus: { a: artA.status, b: artB.status },
+  };
+}
+
+const useMock = new URLSearchParams(window.location.search).has("mock");
+
+async function getFight(nameA, nameB, { needArtA, needArtB }) {
+  if (useMock) return mockFight(nameA, nameB, { needArtA, needArtB });
+
+  const response = await fetch("/api/fight", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fighterA: nameA, fighterB: nameB, needArtA, needArtB }),
+  });
+
+  if (!response.ok) {
+    const error = new Error("The fight request failed");
+    error.status = response.status;
+    const retryAfter = Number(response.headers.get("Retry-After"));
+    if (retryAfter > 0) error.retryAfter = retryAfter;
+    throw error;
+  }
+
+  const data = await response.json();
+  return {
+    verdict: data.verdict,
+    art: { a: data.art?.a ?? null, b: data.art?.b ?? null },
+    artStatus: { a: data.artStatus?.a ?? "failed", b: data.artStatus?.b ?? "failed" },
+  };
 }

@@ -60,13 +60,13 @@ HTML, CSS, and vanilla JS for the frontend. Vercel for hosting and serverless fu
 ### API (Vercel serverless function)
 A single public endpoint, `POST /api/fight`, runs a whole fight. Verdict and art are internal server-side modules, not separate endpoints. This means a fight is naturally one request for rate limiting, and nobody can call the art generation directly to bypass the limit.
 - Request: `{ fighterA, fighterB, needArtA, needArtB }`. The `needArt` flags say which fighters are not already in the client's BattleDex, so art is only generated for those.
-- Response: `{ verdict, art: { a, b } }`. `verdict` is the verdict JSON above. Each `art` value is a base64 data URI (so the client can downsize it on canvas), or `null` if it was not requested, failed or was refused.
+- Response: `{ verdict, art: { a, b }, artStatus: { a, b } }`. `verdict` is the verdict JSON above. Each `art` value is a base64 data URI (so the client can downsize it on canvas), or `null` if it was not requested, failed or was blocked. `artStatus` is `generated`, `not_requested`, `moderation_blocked` (the image safety system blocked the fighter) or `failed` (any other error); a blocked portrait is mentioned to the user, other failures just show the placeholder.
 - The server runs the verdict and any needed art calls in parallel. The verdict is required: if it fails the endpoint returns an error. If only art fails, it still returns the verdict with `null` art, and the client shows the placeholder sprite.
 - Errors: `400` for invalid input, `429` with `Retry-After` when rate limited, `502` if the verdict model fails.
 
 ### Status
 - No API keys or Vercel account yet. These will be set up later.
-- Rate limit: 5 fights per minute per IP. One fight counts as one request, regardless of how many underlying API calls it makes (one verdict plus up to two art). It is built and tested locally before deploying.
+- Rate limit: 3 fights per minute per IP. One fight counts as one request, regardless of how many underlying API calls it makes (one verdict plus up to two art). It is built and tested locally before deploying.
 - Everything is built and tested locally first. Deployment to Vercel comes last.
 
 ## 4. What's the long-term vision, beyond just the MVP?
@@ -78,7 +78,7 @@ I would eventually like a real backend where BattleDex characters sync across de
 1. Frontend with mocked API responses (look, animations, BattleDex, validation).
 2. System prompt, judge rules and prompt-injection hardening, written and tested offline before any real API is connected.
 3. Verdict and art modules, then the single `POST /api/fight` endpoint, built and tested locally.
-4. Rate limiting (5 fights per minute per IP), tested locally.
+4. Rate limiting (3 fights per minute per IP), tested locally.
 5. Vercel deploy: account, environment variables, persistent rate-limit store.
 6. Later: cross-device sync backend, quick re-fight from BattleDex, energy bars.
 

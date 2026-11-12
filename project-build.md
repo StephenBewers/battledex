@@ -123,10 +123,10 @@ Done before any real API is connected, so the rules are settled first. This stag
 
 ### Stage 10: Verdict module
 **Goal:** a server-side `getVerdict(nameA, nameB)` returns real structured verdicts. It is an internal module, not a public endpoint: the only public endpoint is `POST /api/fight` (stage 12).
-- Create an Anthropic account and API key, and store the key in `.env.local` (never committed).
+- Create an Anthropic account and API key, and store the key in `.env` (never committed).
 - Add `lib/verdict.js`: validate input (both names present, lengths capped, not identical), call Claude using the stage 9 system prompt, message builder and `max_tokens` cap, and request structured output using the stage 9 zod schema (via the Anthropic SDK's zod support) instead of asking for JSON in the prompt.
 - Run every parsed response through the stage 9 `validateVerdict()` (which applies the schema's refinements) before returning it; reject or retry once on a mismatch.
-- Test locally with a small Node script (e.g. `scripts/try-verdict.js`) that loads `.env.local` and calls the module directly, so no server or Vercel account is needed yet.
+- Test locally with a small Node script (e.g. `scripts/try-verdict.js`) that loads `.env` and calls the module directly, so no server or Vercel account is needed yet.
 - Run the full stage 9 adversarial list against the real API. Each name must get a normal verdict, with no leak, no off-topic output and no broken JSON. Also run the hard-to-call matchups and check that every one gets exactly one winner, a loser at 0 energy, a winner at 1-100 energy that fits the story, and 2-4 sentences of playful but logical reasoning. Fix the prompt in stage 9's module if any fail.
 
 **Done when:** the script returns valid verdict JSON for two names, bad input throws a clear validation error, every adversarial name returns a valid, on-topic verdict (or a clean error) with no system prompt leak. Every hard-to-call matchup gets a single winner (never a tie), valid energy values and 2-4 sentences of reasoning.
@@ -146,7 +146,7 @@ Done before any real API is connected, so the rules are settled first. This stag
 - Add `api/fight.js`, a single `POST /api/fight`:
   - Request: `{ fighterA, fighterB, needArtA, needArtB }`. The two `needArt` flags say which fighters are not already in the client's BattleDex.
   - Validate the input (same rules as stage 10), then run `getVerdict` and the needed `getArt` calls in parallel.
-  - Response: `{ verdict, art: { a, b } }`, where each `art` value is a data URI, or `null` if it was not requested, failed or was refused.
+  - Response: `{ verdict, art: { a, b }, artStatus: { a, b } }`, where each `art` value is a data URI, or `null` if it was not requested, failed or was blocked. `artStatus` says which: `generated`, `not_requested`, `moderation_blocked` (the image safety system blocked the fighter, shown to the user as a short note) or `failed` (any other error).
   - The verdict is required: if it fails, return an error (`502` for model failure, `400` for bad input). If only art fails, still return `200` with `null` for that fighter, so the client shows the placeholder, matching the stage 6 behaviour.
   - Never return raw model text or internal error details.
 - Test locally with curl against a small local Node server that wraps the handler (no Vercel account needed yet), including bad input and the art-failure path.
@@ -154,6 +154,8 @@ Done before any real API is connected, so the rules are settled first. This stag
 - Test the full flow in the browser, including slow responses, failures and the placeholder path.
 
 **Done when:** curl against `/api/fight` returns a verdict plus art, bad input returns a clear 400, and a real fight works end to end locally.
+
+**As built:** `lib/fight.js` holds the logic, `api/fight.js` adapts it to Vercel, and `scripts/dev-server.js` (`npm run dev`) serves the frontend plus the same handler locally. The real API is the default; `?mock` on the page URL selects the mock. Needs Node 22+.
 
 ---
 
@@ -163,11 +165,13 @@ Stage 13 is built and tested locally. Deployment is the last step.
 
 ### Stage 13: Rate limiting
 **Goal:** protect the API budget.
-- Limit: 5 fights per minute per IP. The limiter sits in front of `POST /api/fight` (stage 12). Because a fight is a single request to that one endpoint, it counts as 1 request however many underlying calls it makes (1 verdict plus up to 2 art), and there is no separate art endpoint to call directly and bypass the limit.
+- Limit: 3 fights per minute per IP. The limiter sits in front of `POST /api/fight` (stage 12). Because a fight is a single request to that one endpoint, it counts as 1 request however many underlying calls it makes (1 verdict plus up to 2 art), and there is no separate art endpoint to call directly and bypass the limit.
 - Implement the limiter behind a small interface, keyed by IP, with an in-memory store for local testing. In-memory counters don't work across serverless instances, so the persistent store is swapped in at deploy (stage 14).
 - Return `429` with a `Retry-After` header and show a friendly message in the UI.
 
-**Done when:** locally, the 6th fight in a minute from one IP gets a 429 (whether it needed 1 or 3 underlying calls), and the UI handles it cleanly.
+**Done when:** locally, the 4th fight in a minute from one IP gets a 429 (whether it needed 1 or 3 underlying calls), and the UI handles it cleanly.
+
+**As built:** `lib/rate-limit.js` is a fixed-window counter behind a `store.increment(key, windowMs)` interface, with an in-memory store. `lib/client-ip.js` reads the IP (socket locally, Vercel's headers when on Vercel). The check runs in `lib/fight.js` after input validation and before any model call, so invalid requests don't use up the limit. A `429` carries `Retry-After`, and the UI says how long to wait and keeps the typed names. If the limiter itself fails, requests are refused with a `503` rather than allowed through. Fixed windows allow a burst across a window boundary (up to 6 in a minute), which is acceptable here.
 
 ### Stage 14: Deploy to Vercel
 **Goal:** the app is live.

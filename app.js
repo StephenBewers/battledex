@@ -31,6 +31,7 @@ const loserPortrait = document.getElementById("loser-portrait");
 const winnerActions = document.getElementById("winner-actions");
 const loserActions = document.getElementById("loser-actions");
 const saveMessage = document.getElementById("save-message");
+const artNote = document.getElementById("art-note");
 const openDexButton = document.getElementById("open-dex");
 const dexTitle = document.getElementById("dex-title");
 const dexNote = document.getElementById("dex-note");
@@ -252,7 +253,19 @@ function buildSaveControl(fighter, art) {
   return button;
 }
 
-function renderResult(fighters, verdict, arts) {
+// Say so when the image safety system blocked a portrait, so a placeholder
+// doesn't look like a bug. Other art failures stay silent (placeholder only).
+function setArtNote(fighters, artStatus) {
+  const blocked = ["a", "b"].filter((key) => artStatus && artStatus[key] === "moderation_blocked");
+  if (blocked.length === 0) {
+    artNote.textContent = "";
+    return;
+  }
+  const names = blocked.map((key) => fighters[key].name).join(" and ");
+  artNote.textContent = `The image filter blocked a portrait for ${names}, so a placeholder is shown.`;
+}
+
+function renderResult(fighters, verdict, arts, artStatus) {
   const winnerKey = verdict.winner === "A" ? "a" : "b";
   const loserKey = winnerKey === "a" ? "b" : "a";
   const winner = fighters[winnerKey];
@@ -266,6 +279,7 @@ function renderResult(fighters, verdict, arts) {
   winnerActions.replaceChildren(buildSaveControl(winner, arts[winnerKey]));
   loserActions.replaceChildren(buildSaveControl(loser, arts[loserKey]));
   setSaveMessage("");
+  setArtNote(fighters, artStatus);
 
   // Un-hiding the view restarts the CSS entrance animation each time.
   showView("result");
@@ -421,15 +435,13 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-// Fighters already in the BattleDex reuse their saved art, so no image call is
-// made for them.
-function fetchArt(fighter) {
-  const saved = BattleDex.get(fighter.id);
-  if (saved) return Promise.resolve({ image: saved.image });
-  return withTimeout(getArt(fighter.name), API_TIMEOUT_MS);
-}
-
 function verdictFailureMessage(reason) {
+  if (reason && reason.status === 429) {
+    const seconds = reason.retryAfter;
+    return seconds
+      ? `Slow down, champ! Too many fights. Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.`
+      : "Slow down, champ! Too many fights. Wait a moment and try again.";
+  }
   if (reason && reason.name === "TimeoutError") {
     return "The judges took too long to decide. Press Fight to try again.";
   }
@@ -445,28 +457,38 @@ async function startFight(fighters) {
   loadingView.focus();
 
   try {
-    // Verdict and art run in parallel. Everything is settled before the reveal.
-    const [verdictResult, artAResult, artBResult] = await Promise.allSettled([
-      withTimeout(getVerdict(fighters.a.name, fighters.b.name), API_TIMEOUT_MS),
-      fetchArt(fighters.a),
-      fetchArt(fighters.b),
-    ]);
+    // Fighters already in the BattleDex reuse their saved art, so the server is
+    // told not to generate an image for them.
+    const savedA = BattleDex.get(fighters.a.id);
+    const savedB = BattleDex.get(fighters.b.id);
 
-    if (verdictResult.status !== "fulfilled" || !isValidVerdict(verdictResult.value)) {
+    // One request runs the whole fight: the server does the verdict and any
+    // needed art in parallel. A failed or refused art call comes back as null.
+    let fight;
+    try {
+      fight = await withTimeout(
+        getFight(fighters.a.name, fighters.b.name, { needArtA: !savedA, needArtB: !savedB }),
+        API_TIMEOUT_MS
+      );
+    } catch (reason) {
+      fight = { failure: reason };
+    }
+
+    if (fight.failure || !fight.verdict || !isValidVerdict(fight.verdict)) {
       // Back to the form with the names intact so the user can retry.
-      showFightError(verdictFailureMessage(verdictResult.reason));
+      showFightError(verdictFailureMessage(fight.failure));
       showView("form");
       fightButton.focus();
       return;
     }
 
-    // A failed, refused or timed-out art call leaves that fighter with the
-    // placeholder portrait (null here). The fight still completes.
+    // Saved art wins. Otherwise use the new art, or null for the placeholder
+    // portrait when it failed, was refused or was not generated.
     const arts = {
-      a: artAResult.status === "fulfilled" ? artAResult.value : null,
-      b: artBResult.status === "fulfilled" ? artBResult.value : null,
+      a: savedA ? { image: savedA.image } : fight.art.a ? { image: fight.art.a } : null,
+      b: savedB ? { image: savedB.image } : fight.art.b ? { image: fight.art.b } : null,
     };
-    renderResult(fighters, verdictResult.value, arts);
+    renderResult(fighters, fight.verdict, arts, fight.artStatus);
   } finally {
     isFighting = false;
   }
