@@ -7,13 +7,14 @@ Any fighter is allowed, including groups ("10 cows" is one fighter with one imag
 
 ## 2. What's the smallest, simplest version worth shipping (MVP)?
 
-Two text inputs, a Fight button, a working verdict with art, a loading state while we wait on the API, and a basic BattleDex saved to localStorage. Type two fighters, get a real result, save it if you want.
+Two fighter inputs (type a new fighter or pick a saved one), a Fight button, a working verdict with art, a loading state while we wait on the API, and a basic BattleDex saved to localStorage. Type two fighters, get a real result, save it if you want.
 
 ### Verdict
 - Shown as an animated winner's card with the reasoning for the win.
 - No fight history is kept.
 - Claude's system prompt scopes it to judging fights only. Fighter names are treated as untrusted data and cannot change its instructions (prompt-injection resistant), and instruction-like names are simply judged as ordinary fighters.
-- Claude returns structured JSON: `{ "winner": "A" | "B", "reasoning": "...", "closeness": 0-100, "loserDamage": 0-100 }`. `closeness` and `loserDamage` are not displayed in the MVP, but are returned now so damage indicators can be added later without an API change.
+- Claude returns structured JSON: `{ "winner": "A" | "B", "reasoning": "...", "energyA": 0-100, "energyB": 0-100 }`. `energyA` and `energyB` are each fighter's remaining energy as a percent. Both fighters start the fight at 100, and the loser always finishes at 0, so the winner's value is how much energy they had left (1-100; a high number is a close-to-flawless win, a low number is a narrow escape). The energy values are not displayed in the MVP, but are returned now so energy bars can be added later without an API change.
+- The judge always picks exactly one winner (no ties, draws or refusals), and the reasoning is 2-4 sentences in a fun, playful tone that still logically justifies the win.
 
 ### Fighters and art
 - Art is generated once per fighter, and each fighter has exactly one image.
@@ -25,6 +26,7 @@ Two text inputs, a Fight button, a working verdict with art, a loading state whi
 ### Validation
 - Both names are required.
 - Mirror matches are blocked: if both normalized names are equal, show a validation message and make no API calls.
+- Each fighter input is a combobox: type any new fighter or pick a saved BattleDex fighter. The fighter chosen in the other field is left out of the list, and a small marker shows when the typed name is already saved (its saved portrait will be used).
 
 ### BattleDex
 - Stores fighters and their art only.
@@ -33,13 +35,16 @@ Two text inputs, a Fight button, a working verdict with art, a loading state whi
   { "id": "10-cows", "name": "10 cows", "image": "data:image/webp;base64,...", "createdAt": 1731100000000 }
   ```
 - Images are downsized to about 256px and stored as WebP via canvas (roughly 10-20KB each) to conserve localStorage space.
+- A BattleDex view lists saved fighters with their art and lets the user remove one (two-step confirm).
 
 ### Flow
 1. User enters two names and presses Fight.
 2. Validate the inputs.
-3. The verdict call and any needed art calls run in parallel, with an arcade-style "FIGHT!" loading state.
+3. The client sends one request to `POST /api/fight`. The server runs the verdict and any needed art calls in parallel, while the client shows an arcade-style "FIGHT!" loading state.
 4. The winner's card animates in with art and reasoning.
-5. The user can save each fighter to the BattleDex.
+5. The user can save each fighter to the BattleDex, then press "New fight" to return to the form.
+
+Only one view (form, loading, result, BattleDex) is visible at a time.
 
 ### Design and accessibility
 - Mobile-first, responsive, with an 80s/90s retro arcade look.
@@ -52,9 +57,12 @@ Two text inputs, a Fight button, a working verdict with art, a loading state whi
 
 HTML, CSS, and vanilla JS for the frontend. Vercel for hosting and serverless functions. Claude's API for the verdict. OpenAI's image API for the character art. localStorage for saving BattleDex.
 
-### API (Vercel serverless functions)
-- `POST /api/verdict`: request `{ fighterA, fighterB }`, response is the verdict JSON above.
-- `POST /api/art`: request `{ name }`, response `{ image }`. Only called for fighters not already in the BattleDex.
+### API (Vercel serverless function)
+A single public endpoint, `POST /api/fight`, runs a whole fight. Verdict and art are internal server-side modules, not separate endpoints. This means a fight is naturally one request for rate limiting, and nobody can call the art generation directly to bypass the limit.
+- Request: `{ fighterA, fighterB, needArtA, needArtB }`. The `needArt` flags say which fighters are not already in the client's BattleDex, so art is only generated for those.
+- Response: `{ verdict, art: { a, b } }`. `verdict` is the verdict JSON above. Each `art` value is a base64 data URI (so the client can downsize it on canvas), or `null` if it was not requested, failed or was refused.
+- The server runs the verdict and any needed art calls in parallel. The verdict is required: if it fails the endpoint returns an error. If only art fails, it still returns the verdict with `null` art, and the client shows the placeholder sprite.
+- Errors: `400` for invalid input, `429` with `Retry-After` when rate limited, `502` if the verdict model fails.
 
 ### Status
 - No API keys or Vercel account yet. These will be set up later.
@@ -63,15 +71,15 @@ HTML, CSS, and vanilla JS for the frontend. Vercel for hosting and serverless fu
 
 ## 4. What's the long-term vision, beyond just the MVP?
 
-I would eventually like a real backend where BattleDex characters sync across devices instead of just living in localStorage. I'd also want a quick re-fight option using characters already saved in the BattleDex, instead of typing two new ones every time. And damage indicators to show how close the battle was and how much damage the loser inflicted on the winner.
+I would eventually like a real backend where BattleDex characters sync across devices instead of just living in localStorage. I'd also want a quick re-fight option using characters already saved in the BattleDex, instead of typing two new ones every time. And energy bars to show how much energy each fighter had left at the end of the battle.
 
 ## 5. Build order
 
 1. Frontend with mocked API responses (look, animations, BattleDex, validation).
-2. Serverless functions for verdict and art, built and tested locally.
-3. System prompt and prompt-injection hardening.
+2. System prompt, judge rules and prompt-injection hardening, written and tested offline before any real API is connected.
+3. Verdict and art modules, then the single `POST /api/fight` endpoint, built and tested locally.
 4. Rate limiting (5 fights per minute per IP), tested locally.
 5. Vercel deploy: account, environment variables, persistent rate-limit store.
-6. Later: cross-device sync backend, quick re-fight from BattleDex, damage indicators.
+6. Later: cross-device sync backend, quick re-fight from BattleDex, energy bars.
 
 See `project-build.md` for the detailed stage-by-stage plan.

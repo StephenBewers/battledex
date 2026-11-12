@@ -1,7 +1,7 @@
 // Mock API layer (stage 4). Same function signatures the real client will use
 // in stage 11, so app.js doesn't change when the mocks are swapped out.
 //
-//   getVerdict(nameA, nameB) -> { winner: "A" | "B", reasoning, closeness, loserDamage }
+//   getVerdict(nameA, nameB) -> { winner: "A" | "B", reasoning, energyA, energyB }
 //   getArt(name)             -> { image }   (an image URL / data URI)
 //
 // Dev flags via the query string, comma separated, e.g. ?mock=fast,art-fail
@@ -47,8 +47,8 @@ async function getVerdict(nameA, nameB) {
   const winner = hash % 2 === 0 ? "A" : "B";
   const winnerName = winner === "A" ? nameA : nameB;
   const loserName = winner === "A" ? nameB : nameA;
-  const closeness = 20 + (hash % 71); // 20-90
-  const loserDamage = Math.round(closeness * 0.8);
+  // Both fighters start at 100 energy. The loser always ends at 0.
+  const winnerEnergy = 10 + (hash % 81); // 10-90
 
   return {
     winner,
@@ -56,8 +56,8 @@ async function getVerdict(nameA, nameB) {
       `${winnerName} takes the victory. ${loserName} lands some real hits, ` +
       `but ${winnerName} has the edge once the fight gets going. ` +
       `(Mock verdict: the real judge arrives in a later stage.)`,
-    closeness,
-    loserDamage,
+    energyA: winner === "A" ? winnerEnergy : 0,
+    energyB: winner === "B" ? winnerEnergy : 0,
   };
 }
 
