@@ -101,5 +101,8 @@ test("createStoreFromEnv: memory locally, Redis when configured, an error on Ver
   assert.ok(createStoreFromEnv({}) instanceof MemStore);
   assert.ok(createStoreFromEnv({ KV_REST_API_URL: "https://x.upstash.io", KV_REST_API_TOKEN: "t" }) instanceof RedisStore);
   assert.ok(createStoreFromEnv({ UPSTASH_REDIS_REST_URL: "https://x.upstash.io", UPSTASH_REDIS_REST_TOKEN: "t" }) instanceof RedisStore);
+  assert.ok(createStoreFromEnv({ STORAGE_KV_REST_API_URL: "https://x.upstash.io", STORAGE_KV_REST_API_TOKEN: "t", STORAGE_KV_REST_API_READ_ONLY_TOKEN: "ro" }) instanceof RedisStore);
   assert.throws(() => createStoreFromEnv({ VERCEL: "1" }), /not configured/);
+  // A read-only token alone is not enough to count requests.
+  assert.throws(() => createStoreFromEnv({ VERCEL: "1", KV_REST_API_URL: "https://x", KV_REST_API_READ_ONLY_TOKEN: "ro" }), /not configured/);
 });

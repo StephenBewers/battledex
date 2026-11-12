@@ -277,7 +277,7 @@ Deployment is the last step, after the app is in its final shape.
 **Code prepared (done in the repo):**
 - The frontend moved into `public/` and `vercel.json` sets `outputDirectory: "public"`, so only that folder is served. Before this, Vercel would have published `lib/`, the tests and the planning docs. `.vercelignore` also keeps tests, scripts and `.md` files out of the upload.
 - `api/fight.js` has `maxDuration` 60, matching the client's 60s timeout.
-- `lib/rate-limit.js` has a `RedisStore` (Upstash over REST: INCR, PEXPIRE NX and PTTL in one transaction). It is chosen when `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`) are set; locally it falls back to memory; on Vercel with no Redis configured the endpoint answers 503 instead of silently using per-instance counts.
+- `lib/rate-limit.js` has a `RedisStore` (Upstash over REST: INCR, PEXPIRE NX and PTTL in one transaction). It is chosen when `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`, with any prefix such as `STORAGE_`) are set; locally it falls back to memory; on Vercel with no Redis configured the endpoint answers 503 instead of silently using per-instance counts.
 
 **Still to do in the Vercel/Upstash/provider dashboards:**
 1. Add an Upstash Redis database (Vercel Marketplace) to the project so the env vars are set.
