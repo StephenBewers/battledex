@@ -54,20 +54,18 @@ function savedFighters() {
   return savedCache;
 }
 
-function makeFighterCombobox(key, otherKey) {
+function makeFighterCombobox(key) {
   return createFighterCombobox({
     input: fields[key].input,
     toggle: document.getElementById(`toggle-${key}`),
     listbox: document.getElementById(`listbox-${key}`),
     status: document.getElementById("combo-status"),
     getFighters: savedFighters,
-    // The fighter chosen in the other field can't be picked here.
-    getExcludedId: () => normalizeName(fields[otherKey].input.value),
   });
 }
 
-const comboA = makeFighterCombobox("a", "b");
-const comboB = makeFighterCombobox("b", "a");
+const comboA = makeFighterCombobox("a");
+const comboB = makeFighterCombobox("b");
 
 // Call after anything that adds, removes or replaces saved fighters.
 function dexChanged() {
@@ -271,13 +269,18 @@ function renderResult(fighters, verdict, arts, artStatus) {
   const winner = fighters[winnerKey];
   const loser = fighters[loserKey];
 
-  winnerName.textContent = winner.name;
+  // In a mirror match both sides share a name and a portrait, so say which
+  // player won (as visible text) and offer a single save.
+  const isMirror = winner.id === loser.id;
+  const playerLabel = (key) => (isMirror ? ` (Player ${key === "a" ? 1 : 2})` : "");
+
+  winnerName.textContent = winner.name + playerLabel(winnerKey);
   winnerPortrait.replaceChildren(buildPortrait(winner, arts[winnerKey], 240));
   resultReasoning.textContent = verdict.reasoning;
-  loserName.textContent = loser.name;
+  loserName.textContent = loser.name + playerLabel(loserKey);
   loserPortrait.replaceChildren(buildPortrait(loser, arts[loserKey], 96));
   winnerActions.replaceChildren(buildSaveControl(winner, arts[winnerKey]));
-  loserActions.replaceChildren(buildSaveControl(loser, arts[loserKey]));
+  loserActions.replaceChildren(...(isMirror ? [] : [buildSaveControl(loser, arts[loserKey])]));
   setSaveMessage("");
   setArtNote(fighters, artStatus);
 
@@ -526,10 +529,8 @@ newFightButton.addEventListener("click", () => {
 });
 
 // Clear an error as soon as the user edits the field it belongs to.
-// Editing Player 1 also clears a mirror-match error shown under Player 2.
 fields.a.input.addEventListener("input", () => {
   clearError("a");
-  if (fields.b.error.dataset.type === "mirror") clearError("b");
   updateSavedMarker("a");
 });
 

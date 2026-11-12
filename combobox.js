@@ -6,16 +6,13 @@
 // the saved fighter's name: fighter identity is the normalized name, so the
 // saved art is reused automatically when the fight starts.
 //
-// The fighter already chosen in the *other* field is left out of the list, so
-// the same fighter can't be picked for both sides.
-//
 // Keys: Down/Up open the list and move through it, Enter picks the highlighted
 // option (otherwise Enter submits the form as usual), Escape closes, Tab leaves.
 // Mouse and touch: the arrow button opens the full list; tap an option to pick.
 
 const COMBOBOX_MAX_OPTIONS = 50;
 
-function createFighterCombobox({ input, toggle, listbox, status, getFighters, getExcludedId }) {
+function createFighterCombobox({ input, toggle, listbox, status, getFighters }) {
   let isOpen = false;
   let activeIndex = -1;
   let shown = []; // fighters currently rendered in the list
@@ -31,9 +28,8 @@ function createFighterCombobox({ input, toggle, listbox, status, getFighters, ge
 
   function matches(showAll) {
     const query = showAll ? "" : normalizeName(input.value);
-    const excluded = getExcludedId();
     return getFighters()
-      .filter((fighter) => fighter.id !== excluded && (!query || fighter.id.includes(query)))
+      .filter((fighter) => !query || fighter.id.includes(query))
       .slice(0, COMBOBOX_MAX_OPTIONS);
   }
 
@@ -187,7 +183,7 @@ function createFighterCombobox({ input, toggle, listbox, status, getFighters, ge
     if (isOpen) {
       close();
     } else if (!open(true)) {
-      announce("No other saved fighters available.");
+      announce("No saved fighters available.");
     }
   });
 

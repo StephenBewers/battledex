@@ -43,10 +43,17 @@ test("returns a validated verdict and sends the judge prompt, message and cap", 
 
 test("bad input throws InvalidFighterError and makes no API call", async () => {
   const client = fakeClient(reply(good));
-  for (const [a, b] of [["", "Vegeta"], ["Goku", "  "], ["Goku", " goku "], ["GOKU", "goku"], [null, "x"]]) {
+  for (const [a, b] of [["", "Vegeta"], ["Goku", "  "], [null, "x"]]) {
     await assert.rejects(getVerdict(a, b, { client }), InvalidFighterError);
   }
   assert.strictEqual(client.calls.length, 0);
+});
+
+test("a mirror match is allowed and tells the judge so", async () => {
+  const client = fakeClient(reply({ ...good, winner: "A", energyA: 3, energyB: 0 }));
+  const verdict = await getVerdict("Goku", " goku ", { client });
+  assert.strictEqual(verdict.winner, "A");
+  assert.ok(client.calls[0].messages[0].content.includes("mirror match"));
 });
 
 test("retries once when the output fails validation", async () => {

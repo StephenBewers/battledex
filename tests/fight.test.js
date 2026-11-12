@@ -104,14 +104,43 @@ test("bad input is a 400 and makes no model calls", async () => {
   }
 });
 
-test("empty names and mirror matches are a 400 and make no model calls", async () => {
-  for (const [a, b] of [["", "Vegeta"], ["Goku", "   "], ["Goku", " goku "], ["GOKU", "goku"]]) {
+test("empty names are a 400 and make no model calls", async () => {
+  for (const [a, b] of [["", "Vegeta"], ["Goku", "   "], ["", ""]]) {
     const deps = fakes();
     const res = await post({ ...body, fighterA: a, fighterB: b }, deps);
     assert.strictEqual(res.status, 400, `${a} / ${b}`);
     assert.strictEqual(res.body.error.code, "invalid_fighters");
     assert.strictEqual(deps.calls.verdict.length + deps.calls.art.length, 0);
   }
+});
+
+test("mirror matches are valid, and the art is generated only once and shared", async () => {
+  for (const [a, b] of [["Goku", "Goku"], ["Goku", " goku "], ["GOKU", "goku"]]) {
+    const deps = fakes();
+    const res = await post({ ...body, fighterA: a, fighterB: b }, deps);
+    assert.strictEqual(res.status, 200, `${a} / ${b}`);
+    assert.strictEqual(deps.calls.verdict.length, 1);
+    assert.strictEqual(deps.calls.art.length, 1, "one image for one fighter");
+    assert.ok(res.body.art.a && res.body.art.a === res.body.art.b);
+    assert.deepStrictEqual(res.body.artStatus, { a: "generated", b: "generated" });
+  }
+});
+
+test("a mirror match with saved art makes no art call", async () => {
+  const deps = fakes();
+  const res = await post({ ...body, fighterB: "goku", fighterA: "Goku", needArtA: false, needArtB: false }, deps);
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(deps.calls.art.length, 0);
+  assert.deepStrictEqual(res.body.artStatus, { a: "not_requested", b: "not_requested" });
+});
+
+test("a failed art call in a mirror match fails for both sides, once", async () => {
+  const deps = fakes({ artImpl: () => { throw new ArtError("art_error", "x"); } });
+  const res = await post({ ...body, fighterA: "Goku", fighterB: "goku" }, deps);
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(deps.calls.art.length, 1);
+  assert.deepStrictEqual(res.body.art, { a: null, b: null });
+  assert.deepStrictEqual(res.body.artStatus, { a: "failed", b: "failed" });
 });
 
 test("non-POST methods get a 405", async () => {
@@ -203,7 +232,7 @@ test("invalid requests don't use up the limit", async () => {
   const rateLimiter = createRateLimiter({ store: new MemoryStore() });
   const deps = { ...fakes(), rateLimiter };
   for (let i = 0; i < 10; i++) {
-    const res = await handleFight({ method: "POST", body: { ...body, fighterB: "goku" }, ip: "1.1.1.1" }, deps);
+    const res = await handleFight({ method: "POST", body: { ...body, fighterB: "" }, ip: "1.1.1.1" }, deps);
     assert.strictEqual(res.status, 400);
   }
   assert.strictEqual((await handleFight({ method: "POST", body, ip: "1.1.1.1" }, deps)).status, 200);

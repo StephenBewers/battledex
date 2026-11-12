@@ -6,8 +6,10 @@ Staged plan derived from `project-brief.md`. Work through the stages in order. E
 - **A. Frontend with mocks (stages 1-8):** no API keys or accounts needed.
 - **B. Judge rules and system prompt (stage 9):** lock down what Claude is allowed to do before it is connected to anything real. No API key needed.
 - **C. Real APIs (stages 10-12):** the verdict and art modules, then the single `POST /api/fight` endpoint that combines them. Built and tested locally with API keys. The verdict module uses the stage 9 prompt from day one.
-- **D. Rate limiting and deploy (stages 13-14):** everything up to stage 13 is built and tested locally. The Vercel account and deploy come last.
-- **E. Post-MVP (stage 15):** items from the long-term vision.
+- **D. Rate limiting (stage 13):** protect the API budget. Built and tested locally.
+- **E. Final improvements (stages 14-18):** mirror matches, energy bars, smaller saved images, playful copy and a name length limit. All built and tested locally, before deploying.
+- **F. Deploy (stage 19):** the Vercel account and deploy come last.
+- **G. Post-MVP (stage 20):** items from the long-term vision.
 
 ---
 
@@ -34,7 +36,7 @@ Staged plan derived from `project-brief.md`. Work through the stages in order. E
 ### Stage 3: Input handling and validation
 **Goal:** the form only lets valid fights through.
 - Write a `normalizeName()` helper (lowercase, trim, collapse whitespace).
-- Validate that both names are present and that the two normalized names differ (mirror matches blocked).
+- Validate that both names are present and that the two normalized names differ (mirror matches blocked; to be reversed in stage 14).
 - Show accessible inline error messages (linked to inputs, announced to screen readers).
 - Fight button triggers validation only; no fight yet.
 
@@ -78,7 +80,7 @@ Staged plan derived from `project-brief.md`. Work through the stages in order. E
 ### Stage 8: BattleDex UI and accessibility pass
 **Goal:** users can view saved fighters, and the whole MVP is accessible.
 - Add a BattleDex view listing saved fighters with art, and a way to remove one.
-- Turn the two name inputs into comboboxes: type a new fighter or pick a saved one, the other field's fighter is excluded from the list, and a marker shows when a typed name is already saved.
+- Turn the two name inputs into comboboxes: type a new fighter or pick a saved one, the other field's fighter is excluded from the list (to be reversed in stage 14), and a marker shows when a typed name is already saved.
 - Only one view (form, loading, result, BattleDex) is visible at a time, toggled with the `hidden` attribute, with a "New fight" button on the result.
 - Add an empty state and a storage-full message.
 - Run a full accessibility pass: keyboard-only use, focus order and visible focus, screen reader labels, `aria-live` regions, reduced motion, colour contrast, 200% zoom.
@@ -124,7 +126,7 @@ Done before any real API is connected, so the rules are settled first. This stag
 ### Stage 10: Verdict module
 **Goal:** a server-side `getVerdict(nameA, nameB)` returns real structured verdicts. It is an internal module, not a public endpoint: the only public endpoint is `POST /api/fight` (stage 12).
 - Create an Anthropic account and API key, and store the key in `.env` (never committed).
-- Add `lib/verdict.js`: validate input (both names present, lengths capped, not identical), call Claude using the stage 9 system prompt, message builder and `max_tokens` cap, and request structured output using the stage 9 zod schema (via the Anthropic SDK's zod support) instead of asking for JSON in the prompt.
+- Add `lib/verdict.js`: validate input (both names present, lengths capped; the "not identical" rule is dropped in stage 14), call Claude using the stage 9 system prompt, message builder and `max_tokens` cap, and request structured output using the stage 9 zod schema (via the Anthropic SDK's zod support) instead of asking for JSON in the prompt.
 - Run every parsed response through the stage 9 `validateVerdict()` (which applies the schema's refinements) before returning it; reject or retry once on a mismatch.
 - Test locally with a small Node script (e.g. `scripts/try-verdict.js`) that loads `.env` and calls the module directly, so no server or Vercel account is needed yet.
 - Run the full stage 9 adversarial list against the real API. Each name must get a normal verdict, with no leak, no off-topic output and no broken JSON. Also run the hard-to-call matchups and check that every one gets exactly one winner, a loser at 0 energy, a winner at 1-100 energy that fits the story, and 2-4 sentences of playful but logical reasoning. Fix the prompt in stage 9's module if any fail.
@@ -159,37 +161,116 @@ Done before any real API is connected, so the rules are settled first. This stag
 
 ---
 
-## Phase D — Rate limiting and deploy
+## Phase D — Rate limiting
 
-Stage 13 is built and tested locally. Deployment is the last step.
+Built and tested locally.
 
 ### Stage 13: Rate limiting
 **Goal:** protect the API budget.
 - Limit: 3 fights per minute per IP. The limiter sits in front of `POST /api/fight` (stage 12). Because a fight is a single request to that one endpoint, it counts as 1 request however many underlying calls it makes (1 verdict plus up to 2 art), and there is no separate art endpoint to call directly and bypass the limit.
-- Implement the limiter behind a small interface, keyed by IP, with an in-memory store for local testing. In-memory counters don't work across serverless instances, so the persistent store is swapped in at deploy (stage 14).
+- Implement the limiter behind a small interface, keyed by IP, with an in-memory store for local testing. In-memory counters don't work across serverless instances, so the persistent store is swapped in at deploy (stage 19).
 - Return `429` with a `Retry-After` header and show a friendly message in the UI.
 
 **Done when:** locally, the 4th fight in a minute from one IP gets a 429 (whether it needed 1 or 3 underlying calls), and the UI handles it cleanly.
 
 **As built:** `lib/rate-limit.js` is a fixed-window counter behind a `store.increment(key, windowMs)` interface, with an in-memory store. `lib/client-ip.js` reads the IP (socket locally, Vercel's headers when on Vercel). The check runs in `lib/fight.js` after input validation and before any model call, so invalid requests don't use up the limit. A `429` carries `Retry-After`, and the UI says how long to wait and keeps the typed names. If the limiter itself fails, requests are refused with a `503` rather than allowed through. Fixed windows allow a burst across a window boundary (up to 6 in a minute), which is acceptable here.
 
-### Stage 14: Deploy to Vercel
+---
+
+## Phase E — Final improvements
+
+Done after the real APIs and rate limiting work locally, and before deploying, so the app is in its final shape when it goes live. Each stage is small and leaves the app working.
+
+### Stage 14: Allow mirror matches
+**Goal:** the same fighter can be on both sides ("Goku" vs "Goku") with no errors anywhere, and the judge still always returns a winner, getting creative if it has to.
+- Frontend: remove the mirror error from `validateFighters` (both names are still required) and the mirror error handling in `app.js`. Stop excluding the other field's fighter from the combobox lists, so a saved fighter can be picked for both sides. Remove the now-unused exclusion plumbing (`getExcludedId`).
+- Server: remove the "must be different" rule from `checkFighters`. The same-name fight is valid input end to end.
+- One fighter, one image: when both sides are the same fighter (same normalized name), generate the art once and use it for both sides, and count it as a single `needArt`. Saving saves one BattleDex entry, so the result card shows one save control for a mirror match.
+- Judge prompt: add a mirror-match rule. The two fighters are identical, but there is still exactly one winner, no ties, draws or refusals. The judge has to get creative about what decides it: a coin flip, who blinks first, who slept better, a tiny edge in timing, luck or stamina, a rematch that goes to sudden death, and so on. The reasoning must say what the deciding factor was and stay playful, but the logic holds. Fighter A is "Player 1" and fighter B is "Player 2", and when both have the same name the judge refers to them as Player 1 and Player 2 so it is clear who won.
+- Winner card: in a mirror match both sides share a name and portrait, so the card also labels the winner and the defeated as Player 1 or Player 2 (visible text, not just colour or position).
+- Tests: flip the validation and server tests that expected a mirror error (names that match in case or spacing are now valid), add mirror matchups to the hard-to-call list (e.g. "Goku" vs "Goku", "goku" vs " GOKU ", "Time" vs "Time"), and run them against the real API.
+
+**Done when:** the same fighter can be chosen or typed on both sides with no error in the form or from the server, the art is generated once and shared, the card makes clear who won, and every mirror matchup in the real-API run returns one winner with valid energy and 2-4 sentences of playful, logical reasoning that names the deciding factor.
+
+**As built:** `validateFighters` and `checkFighters` no longer have a mirror rule, and the combobox lost its exclusion (`getExcludedId`). `lib/fight.js` generates one image when both names normalize the same and returns it for both sides. The judge prompt has a mirror-match rule (rule 6), and `buildUserMessage` adds a "this is a mirror match" line computed from the names, so a name can't fake or hide it. The card labels the sides "(Player 1)" and "(Player 2)" in the names and shows one save button. In a real-model run of 11 hard matchups (4 of them mirror matches) every fight got one winner, and the mirror ones named a deciding factor such as a growling stomach or a split-second delay.
+
+### Stage 15: Energy bars
+**Goal:** the result shows each fighter's remaining energy as a retro fighting-game health bar. (`energyA` and `energyB` are already returned by the API.)
+- Add two bars to the winner's card, one per fighter, labelled with the fighter's name (or Player 1 / Player 2 in a mirror match) and a text percentage.
+- Both bars start full (100%) and animate down to each fighter's final energy: the loser's to 0, the winner's to what they have left. Use a stepped, chunky animation that fits the pixel look, with no flashing.
+- Not colour alone: show the number as text, and use bar colour (for example green, yellow, red by remaining energy) only as an extra cue. Keep WCAG AA contrast for the text and a visible bar outline.
+- Accessibility: expose each bar to screen readers with a text label such as "Goku, 72 percent energy remaining" (for example `role="meter"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax` and an accessible name, or plain text). The animation itself is not announced.
+- `prefers-reduced-motion`: show the final values straight away, with no animation.
+- Validate the values on the client (integers 0-100, loser 0) and fall back to hiding the bars if they are missing, rather than breaking the card.
+- Add the mock verdict energy values to the mock flow so the bars can be seen without real fights.
+
+**Done when:** the card shows two bars that animate from full to the right values, the loser's is empty, the numbers are readable as text, reduced motion shows the final state with no animation, and an axe scan of the result view has no violations.
+
+### Stage 16: Smaller saved images (10KB max)
+**Goal:** every image in the BattleDex is at most 10KB, so 10-20 saved fighters fit comfortably in localStorage. (Images are currently about 17-34KB each.)
+- The limit is on what is actually stored: the saved `data:image/...` string must be at most 10KB (10,240 characters).
+- Make `downsizeImage()` search for a result under the budget instead of using fixed settings: try the current 256px size at a few WebP qualities, then step the size down (for example 256, 192, 160, 128px) with a quality search at each, stopping at the first result under the limit. Keep a sensible floor (the lowest size and quality still look like the portrait) and fail clearly if nothing fits.
+- Check how it looks at the sizes the app displays (the 240px winner portrait and the small thumbnails). Pixel art should stay crisp, so consider `image-rendering: pixelated` for portraits if it looks better.
+- Existing saved fighters that are over the limit are recompressed once when the app loads (or on the next save), and any that can't be recompressed are left alone.
+- Update the storage-full message to match the new capacity, and add a test that saves 20 real-sized portraits without hitting the quota.
+- Measure with the real art from `scripts/try-art.js` across the fighter types (a person, a group, an object, an abstract concept) and report the sizes.
+
+**Done when:** every portrait saved from a real fight comes out at 10KB or less and still looks good at its display size, 20 saved fighters fit in storage, and old oversized entries are shrunk.
+
+### Stage 17: Loading messages and a playful voice for every error
+**Goal:** waiting and failing both sound like the arena announcer from the verdicts: playful and punchy, but still clear about what happened and what to do next.
+- Put all user-facing copy in one place (e.g. `messages.js`, loaded before `app.js`) so the tone stays consistent and it can be tested.
+- **Rotating loading messages:** while a fight is loading, cycle through 10-12 fun on-theme phrases (for example about the judges deliberating, fighters warming up, the arena filling, the bell being polished), changing every 2-3 seconds, starting from a random one. Accessibility: the loading view is announced once ("Fight in progress"), the changing phrase is not a live region so a screen reader isn't interrupted every few seconds, and with `prefers-reduced-motion` the phrase stays fixed instead of rotating. Stop the timer when the fight ends or fails.
+- **Rewrite every error with personality.** Each scenario gets its own message (one or two short sentences: what happened, then what to do, with no blame, status codes or jargon):
+
+| Scenario | When it happens |
+|---|---|
+| Rate limit | 3 fights per minute exceeded (429); includes how many seconds to wait |
+| Missing fighters | a name is empty (one message per field) |
+| Judge timeout | no answer within the client's 60 second limit |
+| Judge call failed | the fight request failed on the judge side (502, or an unusable verdict) |
+| Moderation block | the image safety system blocked a portrait (the existing note) |
+| Image gen fail | a portrait failed for any other reason; a short note instead of silently showing the placeholder |
+| Network lost | the browser could not reach the server (offline, request never sent) |
+| Generic fallback | anything else unexpected (500, 503, a malformed response) |
+
+- Also bring the existing save, storage-full and BattleDex messages in line with the same voice.
+- The client picks the message from the error type or `artStatus`, never by showing server text, so the tone is controlled in one place.
+- Tests: every scenario has a non-empty message of reasonable length, each failure path in `app.js` shows the right message (use the mock flags, adding ones for network lost and judge timeout where needed), the rotation starts, cycles and stops, and an axe scan finds no violations.
+
+**Done when:** every scenario above shows its own playful message in the right place, the loading phrases rotate (and stay still with reduced motion), and nothing shows a raw error or status code.
+
+### Stage 18: 50 character limit on fighter names
+**Goal:** fighter names are at most 50 characters, enforced in both the browser and the server, with a friendly error.
+- The limit is 50 characters after trimming and collapsing whitespace, counted as characters (so an emoji counts once). Change the shared limit from 60 to 50.
+- Frontend: show a playful error (in the same voice as stage 17, added to `messages.js`) when a name is over the limit, linked to the field like the other errors. Don't rely on `maxlength` alone, because a pasted name would be silently cut off with no explanation; either let the user see the error or show a live character count. Update the `maxlength` accordingly if it is kept.
+- Backend: reject names over 50 characters with a `400` and a distinct error code (e.g. `name_too_long`), rather than silently truncating. Truncating would make the server and the browser disagree about a fighter's identity (the BattleDex id). The sanitizer, judge message builder and art prompt builder keep the limit as a backstop.
+- Tests: a name of 50 passes and 51 fails on both sides, whitespace is not counted twice, emoji count once, a pasted long name shows the error, and the server returns the `400` without calling any model.
+
+**Done when:** a 51-character name is rejected with a playful message in the browser and a `400` from the server, a 50-character name works, and no model call is made for an over-long name.
+
+---
+
+## Phase F — Deploy
+
+Deployment is the last step, after the app is in its final shape.
+
+### Stage 19: Deploy to Vercel
 **Goal:** the app is live.
 - Create a Vercel account and connect the project.
 - Add the API keys as environment variables.
 - Swap the limiter's in-memory store for a persistent one (e.g. Vercel KV / Upstash Redis), and check that the client IP is read correctly behind Vercel's proxy (`x-forwarded-for`).
 - Set a hard daily spend cap on the OpenAI and Anthropic dashboards as a backstop.
-- Deploy, then re-test the full flow on the live URL on a real phone, including the rate limit and the stage 9 adversarial tests.
+- Deploy, then re-test the full flow on the live URL on a real phone, including the rate limit, the stage 9 adversarial tests, mirror matches and the 50 character limit.
 - Check function timeouts against real image generation times, and adjust the design (e.g. show the verdict first) if needed.
 
 **Done when:** a stranger can open the URL and run a fight, and the rate limit holds on the live site.
 
 ---
 
-## Phase E — Post-MVP (each is its own mini-project)
+## Phase G — Post-MVP (each is its own mini-project)
 
-### Stage 15: Long-term vision
-Tackle in this order, each as a separate plan:
-1. **Quick re-fight:** pick two saved fighters from the BattleDex and fight without typing.
-2. **Energy bars:** display `energyA` and `energyB` (already returned by the API) as retro fighting-game health bars, animating from 100 down to each fighter's final value.
-3. **Cross-device sync:** a real backend (auth plus a database) replacing localStorage as the source of truth, with a migration path for existing local fighters.
+### Stage 20: Long-term vision
+**Cross-device sync:** a real backend (auth plus a database) replacing localStorage as the source of truth, with a migration path for existing local fighters.
+
+Dropped from the original list: **quick re-fight** (the fighter comboboxes already let you pick two saved fighters without typing) and **energy bars** (now stage 15).

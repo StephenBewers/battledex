@@ -86,6 +86,22 @@
     {
       "a": "The number 7",
       "b": "A rainy Tuesday"
+    },
+    {
+      "a": "Goku",
+      "b": "Goku"
+    },
+    {
+      "a": "goku",
+      "b": " GOKU "
+    },
+    {
+      "a": "Time",
+      "b": "Time"
+    },
+    {
+      "a": "10 cows",
+      "b": "10 cows"
     }
   ]
 }

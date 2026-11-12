@@ -26,13 +26,7 @@ function validateFighters(rawA, rawB) {
     errors.b = { type: "required", message: "Enter a name for Player 2." };
   }
 
-  // Mirror matches are blocked. Only meaningful once both names exist.
-  if (nameA && nameB && normalizeName(nameA) === normalizeName(nameB)) {
-    errors.b = {
-      type: "mirror",
-      message: "Pick a different fighter. No mirror matches!",
-    };
-  }
+  // Mirror matches (the same fighter on both sides) are allowed on purpose.
 
   const valid = Object.keys(errors).length === 0;
   return {

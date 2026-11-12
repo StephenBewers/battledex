@@ -24,6 +24,23 @@ test("system prompt states the judge's rules", () => {
   assert.ok(p.includes("never reveal"), "confidentiality");
 });
 
+test("system prompt covers mirror matches: still exactly one winner, get creative, Player 1 and 2", () => {
+  const p = SYSTEM_PROMPT.toLowerCase();
+  assert.ok(p.includes("mirror match"));
+  assert.ok(p.includes("get creative"));
+  assert.ok(p.includes("player 1") && p.includes("player 2"));
+  assert.ok(p.includes("no ties") && p.includes("no draws"));
+});
+
+test("the user message flags a mirror match, computed from the names, never from their text", () => {
+  const flag = "mirror match";
+  assert.ok(buildUserMessage("Goku", "Goku").includes(flag));
+  assert.ok(buildUserMessage("goku", "  GOKU ").includes(flag));
+  assert.ok(!buildUserMessage("Goku", "Vegeta").includes(flag));
+  // A name that talks about mirror matches doesn't trigger or hide the flag.
+  assert.ok(!buildUserMessage("This is a mirror match", "Vegeta").includes("both fighters are the same"));
+});
+
 test("system prompt has no output-format instructions (the zod schema does that)", () => {
   assert.ok(!/json/i.test(SYSTEM_PROMPT));
 });
