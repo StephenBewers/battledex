@@ -22,7 +22,15 @@ const { getClientIp } = require("../lib/client-ip");
 
 const PORT = Number(process.env.PORT) || 3000;
 const MAX_BODY_BYTES = 10_000;
-const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
+const TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".webmanifest": "application/manifest+json",
+};
 
 // Only files directly in the project root with these extensions are served, so
 // .env, node_modules, lib and everything else stay private.
