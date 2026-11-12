@@ -14,16 +14,21 @@ function normalizeName(value) {
 // Validate the two fighter inputs.
 // Returns { valid, errors, fighters }. `errors` has optional `a` and `b` entries,
 // each { type, message }. `fighters` holds the cleaned names and ids when valid.
+// The copy lives in messages.js: a global in the browser, a require in Node.
+function copy() {
+  return typeof MESSAGES !== "undefined" ? MESSAGES : require("./messages").MESSAGES;
+}
+
 function validateFighters(rawA, rawB) {
   const nameA = cleanName(rawA);
   const nameB = cleanName(rawB);
   const errors = {};
 
   if (!nameA) {
-    errors.a = { type: "required", message: "Enter a name for Player 1." };
+    errors.a = { type: "required", message: copy().missingFighter.a };
   }
   if (!nameB) {
-    errors.b = { type: "required", message: "Enter a name for Player 2." };
+    errors.b = { type: "required", message: copy().missingFighter.b };
   }
 
   // Mirror matches (the same fighter on both sides) are allowed on purpose.

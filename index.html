@@ -75,7 +75,9 @@
     <!-- Loading view. Receives focus when shown, so it is read aloud. -->
     <section id="loading" class="loading" hidden tabindex="-1" aria-label="Fight in progress">
       <p class="loading-text">FIGHT!</p>
-      <p class="loading-sub">The judges are deliberating</p>
+      <!-- app.js rotates fun phrases in here. Hidden from screen readers so they
+           aren't interrupted every few seconds; the section's label says "Fight in progress". -->
+      <p id="loading-sub" class="loading-sub" aria-hidden="true"></p>
     </section>
 
     <!-- Result view: the animated winner's card, then a New fight button.
@@ -142,12 +144,8 @@
     <!-- BattleDex view: saved fighters, with a way to remove them. -->
     <section id="battledex" class="panel dex" hidden aria-labelledby="dex-title">
       <h2 id="dex-title" class="dex-title" tabindex="-1">BattleDex</h2>
-      <p id="dex-note" class="dex-note" hidden>
-        Your browser is blocking storage, so fighters can't be saved or listed here.
-      </p>
-      <p id="dex-empty" class="dex-empty" hidden>
-        No fighters saved yet. Win a battle, then save your fighters to see them here.
-      </p>
+      <p id="dex-note" class="dex-note" hidden></p>
+      <p id="dex-empty" class="dex-empty" hidden></p>
       <ul id="dex-list" class="dex-list" role="list"></ul>
       <p id="dex-message" class="save-message" role="status"></p>
       <button type="button" id="dex-back" class="secondary-button">Back</button>
@@ -162,6 +160,7 @@
     <p class="noscript">Battleground needs JavaScript to run. Please turn it on and reload.</p>
   </noscript>
 
+  <script src="messages.js"></script>
   <script src="validation.js"></script>
   <script src="energy.js"></script>
   <script src="api-client.js"></script>

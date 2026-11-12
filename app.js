@@ -21,6 +21,7 @@ const fields = {
 };
 const fightError = document.getElementById("fight-error");
 const loadingView = document.getElementById("loading");
+const loadingSub = document.getElementById("loading-sub");
 const resultView = document.getElementById("result");
 const winnerHeading = document.getElementById("result-title");
 const winnerName = document.getElementById("winner-name");
@@ -46,6 +47,8 @@ const openDexButton = document.getElementById("open-dex");
 const dexTitle = document.getElementById("dex-title");
 const dexNote = document.getElementById("dex-note");
 const dexEmpty = document.getElementById("dex-empty");
+dexNote.textContent = MESSAGES.dex.blocked;
+dexEmpty.textContent = MESSAGES.dex.empty;
 const dexList = document.getElementById("dex-list");
 const dexMessage = document.getElementById("dex-message");
 const dexBackButton = document.getElementById("dex-back");
@@ -192,11 +195,12 @@ function setSaveMessage(message, isError = false) {
   else delete saveMessage.dataset.error;
 }
 
+// Save failure reasons from BattleDex.save, mapped to their messages.
 const SAVE_ERRORS = {
-  quota: "The BattleDex is full. Open the BattleDex and remove a fighter to make room.",
-  unavailable: "Can't save: your browser is blocking storage.",
-  invalid: "Can't save this fighter.",
-  too_large: "Can't save: this portrait is too detailed to shrink down.",
+  quota: MESSAGES.save.quota,
+  unavailable: MESSAGES.save.unavailable,
+  invalid: MESSAGES.save.invalid,
+  too_large: MESSAGES.save.tooLarge,
 };
 
 // The button uses aria-disabled rather than disabled so keyboard focus stays put.
@@ -235,12 +239,12 @@ async function saveToBattleDex(button, fighter, art) {
       return;
     }
     setSaveButtonState(button, fighter, "saved");
-    setSaveMessage(`${fighter.name} saved to the BattleDex.`);
+    setSaveMessage(MESSAGES.save.saved(fighter.name));
     dexChanged();
   } catch (error) {
     setSaveButtonState(button, fighter, "unsaved");
     setSaveMessage(
-      error instanceof ImageTooLargeError ? SAVE_ERRORS.too_large : "Couldn't prepare this portrait for saving.",
+      error instanceof ImageTooLargeError ? SAVE_ERRORS.too_large : MESSAGES.save.prepareFailed,
       true
     );
   }
@@ -253,7 +257,7 @@ function buildSaveControl(fighter, art) {
   if (!art || !art.image) {
     const note = document.createElement("p");
     note.className = "save-note";
-    note.textContent = "Can't save: no portrait";
+    note.textContent = MESSAGES.save.noPortrait;
     return note;
   }
 
@@ -265,16 +269,11 @@ function buildSaveControl(fighter, art) {
   return button;
 }
 
-// Say so when the image safety system blocked a portrait, so a placeholder
-// doesn't look like a bug. Other art failures stay silent (placeholder only).
+// Say so when a portrait was blocked by the image safety system or failed to
+// generate, so a placeholder doesn't look like a bug. Blocked and failed have
+// their own wording.
 function setArtNote(fighters, artStatus) {
-  const blocked = ["a", "b"].filter((key) => artStatus && artStatus[key] === "moderation_blocked");
-  if (blocked.length === 0) {
-    artNote.textContent = "";
-    return;
-  }
-  const names = blocked.map((key) => fighters[key].name).join(" and ");
-  artNote.textContent = `The image filter blocked a portrait for ${names}, so a placeholder is shown.`;
+  artNote.textContent = artNoteMessage(fighters, artStatus);
 }
 
 /* ---------- Energy bars ---------- */
@@ -400,7 +399,7 @@ function buildDexItem(fighter) {
       return;
     }
     setRemoveState(button, fighter, true);
-    setDexMessage(`Press again to remove ${fighter.name}.`);
+    setDexMessage(MESSAGES.dex.confirmRemove(fighter.name));
     resetTimer = setTimeout(() => {
       setRemoveState(button, fighter, false);
       setDexMessage("");
@@ -427,13 +426,13 @@ function removeFromDex(fighter) {
   const result = BattleDex.remove(fighter.id);
   if (!result.ok) {
     renderDex();
-    setDexMessage("Couldn't remove that fighter. Your browser is blocking storage.", true);
+    setDexMessage(MESSAGES.dex.removeFailed, true);
     return;
   }
 
   renderDex();
   dexChanged();
-  setDexMessage(`${fighter.name} removed from the BattleDex.`);
+  setDexMessage(MESSAGES.dex.removed(fighter.name));
 
   // Keep keyboard focus useful: the next fighter's button, else the previous
   // one, else the heading when the list is now empty.
@@ -492,23 +491,35 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-function verdictFailureMessage(reason) {
-  if (reason && reason.status === 429) {
-    const seconds = reason.retryAfter;
-    return seconds
-      ? `Slow down, champ! Too many fights. Try again in ${seconds} ${seconds === 1 ? "second" : "seconds"}.`
-      : "Slow down, champ! Too many fights. Wait a moment and try again.";
-  }
-  if (reason && reason.name === "TimeoutError") {
-    return "The judges took too long to decide. Press Fight to try again.";
-  }
-  return "The judges couldn't reach a verdict. Press Fight to try again.";
+/* ---------- Loading phrases ---------- */
+
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+let loadingTimer = null;
+
+// Cycles fun phrases while a fight loads, in a fresh order each time. With
+// reduced motion it shows one phrase and keeps it still.
+function startLoadingMessages() {
+  stopLoadingMessages();
+  const phrases = shuffled(MESSAGES.loading);
+  let index = 0;
+  loadingSub.textContent = phrases[0];
+  if (reducedMotion.matches) return;
+  loadingTimer = setInterval(() => {
+    index = (index + 1) % phrases.length;
+    loadingSub.textContent = phrases[index];
+  }, MESSAGES.loadingIntervalMs);
+}
+
+function stopLoadingMessages() {
+  clearInterval(loadingTimer);
+  loadingTimer = null;
 }
 
 async function startFight(fighters) {
   isFighting = true;
   hideFightError();
   showView("loading");
+  startLoadingMessages();
   // The form (and the focused button) just disappeared, so move focus to the
   // loading view. Screen readers read it aloud.
   loadingView.focus();
@@ -533,7 +544,7 @@ async function startFight(fighters) {
 
     if (fight.failure || !fight.verdict || !isValidVerdict(fight.verdict)) {
       // Back to the form with the names intact so the user can retry.
-      showFightError(verdictFailureMessage(fight.failure));
+      showFightError(fightFailureMessage(fight.failure));
       showView("form");
       fightButton.focus();
       return;
@@ -547,6 +558,7 @@ async function startFight(fighters) {
     };
     renderResult(fighters, fight.verdict, arts, fight.artStatus);
   } finally {
+    stopLoadingMessages();
     isFighting = false;
   }
 }
